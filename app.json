@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "BusMapp",
+    "slug": "busmapp",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "busmapp",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0B6E4F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.busmapp.app"
+    },
+    "android": {
+      "package": "com.busmapp.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B6E4F"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
