@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BusMap } from '@/components/BusMap';
 import { RouteProgress } from '@/components/RouteProgress';
 import { StopsAwayBadge } from '@/components/StopsAwayBadge';
 import { findBusByRoute, findChild, findRoute, findStopIndex } from '@/data/mockData';
@@ -12,10 +13,13 @@ import { entitles } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
+type ViewMode = 'map' | 'stops';
+
 export default function TrackScreen() {
   const { childId } = useLocalSearchParams<{ childId: string }>();
   const { positions, subscription } = useApp();
   const insets = useSafeAreaInsets();
+  const [viewMode, setViewMode] = useState<ViewMode>('map');
 
   const child = childId ? findChild(childId) : undefined;
   if (!child) {
@@ -76,8 +80,20 @@ export default function TrackScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Route</Text>
-        {position && (
+        <View style={styles.routeHeader}>
+          <Text style={styles.sectionTitle}>Route</Text>
+          <SegmentedToggle value={viewMode} onChange={setViewMode} />
+        </View>
+
+        {position && viewMode === 'map' && (
+          <BusMap
+            route={route}
+            position={position}
+            childStopIndex={childStopIndex}
+          />
+        )}
+
+        {position && viewMode === 'stops' && (
           <View style={styles.routeCard}>
             <RouteProgress
               route={route}
@@ -88,6 +104,47 @@ export default function TrackScreen() {
         )}
       </ScrollView>
     </>
+  );
+}
+
+function SegmentedToggle({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
+  const options: { key: ViewMode; icon: 'map' | 'list'; label: string }[] = [
+    { key: 'map', icon: 'map', label: 'Map' },
+    { key: 'stops', icon: 'list', label: 'Stops' },
+  ];
+  return (
+    <View style={styles.segment}>
+      {options.map((opt) => {
+        const active = value === opt.key;
+        return (
+          <Pressable
+            key={opt.key}
+            onPress={() => onChange(opt.key)}
+            style={[styles.segmentItem, active && styles.segmentItemActive]}
+          >
+            <Ionicons
+              name={opt.icon}
+              size={15}
+              color={active ? colors.onPrimary : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.segmentText,
+                { color: active ? colors.onPrimary : colors.textMuted },
+              ]}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -152,6 +209,33 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  routeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: colors.border,
+    borderRadius: radius.pill,
+    padding: 3,
+    gap: 2,
+  },
+  segmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+  },
+  segmentItemActive: {
+    backgroundColor: colors.primary,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   routeCard: {
     backgroundColor: colors.surface,

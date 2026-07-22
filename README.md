@@ -13,7 +13,9 @@ paid subscription.
 - **Home / My Children** — every child with a live status chip (`3 stops away`,
   `~7 min`, `Arriving`, `Picked up`).
 - **Live tracking screen** — a big "stops away" countdown, bus/driver details,
-  and a route schematic showing the bus moving between stops in real time.
+  and a **Map / Stops toggle**: a real geographic map (route polyline, stop
+  markers, live bus marker) or a dependency-free route schematic, both driven by
+  the same `BusPosition`.
 - **Subscription gate** — tracking unlocks only for `trial`/`active`
   subscriptions; a paywall with monthly/yearly plans (mock purchase).
 - **Bus simulator** — two Beirut routes (Achrafieh & Hamra) whose buses advance
@@ -23,8 +25,18 @@ paid subscription.
 ## Tech stack
 
 - **Expo (React Native)** + **expo-router** (file-based navigation), TypeScript.
-- No native map dependency yet — the route view is a pure-RN schematic so it runs
-  in **Expo Go** with zero extra setup. A geographic map is a planned enhancement.
+- **react-native-maps** for the geographic view (Apple Maps on iOS, Google Maps
+  on Android). The pure-RN route schematic remains as the low-data / offline
+  fallback — relevant for Lebanese networks.
+
+### Map requirements
+
+- **iOS:** uses Apple Maps — works with no API key.
+- **Android:** Google Maps needs an API key. Put it in
+  `app.json → android.config.googleMaps.apiKey` (currently a placeholder) and
+  build a **dev client** (`npx expo prebuild && npx expo run:android`, or an EAS
+  build). Without it, tap **Stops** to use the schematic.
+- The **Stops** view always works everywhere, including Expo Go.
 
 ## Run it
 
@@ -60,7 +72,7 @@ src/
     subscription.ts       # entitlement + mock plans
     geo.ts                # lat/lng helpers
   store/AppContext.tsx    # global state; wires simulator -> React
-  components/             # ChildCard, StopsAwayBadge, RouteProgress
+  components/             # ChildCard, StopsAwayBadge, RouteProgress, BusMap
   theme/theme.ts          # colors, spacing, radii
 docs/PLAN.md              # architecture & phased roadmap
 ```

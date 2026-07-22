@@ -47,14 +47,16 @@ segment.
 - Expo app, parent flows, subscription gate, two Beirut routes, simulator.
 - Route rendered as a schematic (no native map dependency; runs in Expo Go).
 
-### Phase 1 — Real map + polish
-- Add **react-native-maps** (Google Maps on Android, Apple Maps on iOS) as a
-  tracking view alongside the schematic: bus marker + stop markers + route
-  polyline, driven by the same `BusPosition`.
-- Requires a dev build (`npx expo prebuild` / EAS) and a Google Maps API key for
-  Android. Keep the schematic as the offline/low-data fallback — relevant for
-  Lebanese networks.
-- Geocode/lay out real route polylines instead of straight segments.
+### Phase 1 — Real map ✅ (this repo)
+- **react-native-maps** tracking view alongside the schematic, via a Map/Stops
+  toggle: bus marker + stop markers + route polyline, all driven by the same
+  `BusPosition`. iOS uses Apple Maps (no key); Android needs a Google Maps key in
+  `app.json` and a dev build. Schematic remains the offline/low-data fallback.
+
+### Phase 1b — Map polish (next)
+- Follow-the-bus camera; animate the marker between position updates.
+- Geocode/lay out real road-following route polylines instead of straight
+  segments between stops (Directions API or offline routing).
 
 ### Phase 2 — Backend + real GPS
 - **Backend:** a small API (suggested: Node/NestJS or Supabase) owning
