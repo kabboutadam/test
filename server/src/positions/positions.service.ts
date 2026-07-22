@@ -43,18 +43,24 @@ export class PositionsService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly fleet: FleetService) {}
 
   onModuleInit(): void {
-    for (const route of this.fleet.getRoutes()) {
-      this.sim.set(route.id, {
-        currentStopIndex: 0,
-        progressToNext: 0,
-        dwellRemaining: DWELL_SECONDS,
-        done: false,
-        lastDriverAt: 0,
-      });
-      this.positions.set(route.id, this.simPosition(route));
-    }
+    for (const route of this.fleet.getRoutes()) this.registerRoute(route.id);
     this.timer = setInterval(() => this.tick(), TICK_MS);
     this.logger.log(`Tracking ${this.positions.size} routes`);
+  }
+
+  /** Begin tracking a route (e.g. one an operator just created). Idempotent. */
+  registerRoute(routeId: string): void {
+    if (this.sim.has(routeId)) return;
+    const route = this.fleet.getRoute(routeId);
+    if (!route) return;
+    this.sim.set(routeId, {
+      currentStopIndex: 0,
+      progressToNext: 0,
+      dwellRemaining: DWELL_SECONDS,
+      done: false,
+      lastDriverAt: 0,
+    });
+    this.positions.set(routeId, this.simPosition(route));
   }
 
   onModuleDestroy(): void {

@@ -55,9 +55,14 @@ Operator — require an **operator** token, scoped to the operator's school:
 | --- | --- | --- |
 | GET  | `/api/admin/overview` | School, routes (bus/driver/child counts), totals |
 | GET  | `/api/admin/positions` | Live status per route in the school |
+| POST | `/api/admin/routes` | Create a route (name + stops); starts tracking |
+| POST | `/api/admin/buses` | Create a bus on a route (one per route) |
+| PATCH | `/api/admin/buses/:id` | Edit a bus / reassign its driver |
 
-The **operator dashboard** is served at **`/admin.html`** (static, from
-`public/`): operator OTP login, then a live monitor polling `/admin/positions`.
+Writes are validated against the operator's school (cross-school → 403). The
+**operator dashboard** is served at **`/admin.html`** (static, from `public/`):
+operator OTP login, a live monitor polling `/admin/positions`, and forms to add
+routes/buses and edit drivers.
 
 ## Auth
 

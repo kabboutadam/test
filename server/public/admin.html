@@ -79,6 +79,18 @@
       .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-right: 6px; animation: pulse 1.5s infinite; }
       @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
       .hidden { display: none; }
+      .manage { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+      @media (max-width: 640px) { .manage { grid-template-columns: 1fr; } }
+      .manage h3 { margin: 0 0 12px; font-size: 15px; }
+      .manage input, .manage select, .manage textarea {
+        width: 100%; font: inherit; padding: 10px; margin-bottom: 10px;
+        border: 1px solid var(--border); border-radius: 8px; text-align: left;
+      }
+      .manage button { width: 100%; }
+      .msg { font-size: 13px; min-height: 16px; margin-top: 8px; }
+      .msg.ok { color: var(--primary); }
+      .msg.err { color: var(--danger); }
+      .link-btn { background: none; padding: 0; color: var(--primary); font-size: 12px; font-weight: 700; }
     </style>
   </head>
   <body>
@@ -115,6 +127,25 @@
             </thead>
             <tbody id="rows"></tbody>
           </table>
+        </div>
+
+        <div class="manage">
+          <div class="card">
+            <h3>Add bus</h3>
+            <select id="busRoute"></select>
+            <input id="busPlate" placeholder="Plate (e.g. B 123456)" />
+            <input id="busDriver" placeholder="Driver name" />
+            <input id="busPhone" placeholder="Driver phone (their login)" inputmode="tel" />
+            <button id="addBusBtn" class="btn-primary">Add bus</button>
+            <div id="busMsg" class="msg"></div>
+          </div>
+          <div class="card">
+            <h3>Add route</h3>
+            <input id="routeName" placeholder="Route name" />
+            <textarea id="routeStops" rows="5" placeholder="One stop per line:&#10;Name, lat, lng, HH:MM, minutesFromPrev&#10;AUB Main Gate, 33.900, 35.480, 07:00, 0&#10;Bliss Street, 33.898, 35.482, 07:05, 5"></textarea>
+            <button id="addRouteBtn" class="btn-primary">Add route</button>
+            <div id="routeMsg" class="msg"></div>
+          </div>
         </div>
       </main>
     </div>
@@ -180,18 +211,99 @@
       };
 
       async function start() {
-        const r = await api('/admin/overview');
-        if (r.status === 401) return $('signOut').onclick();
-        overview = await r.json();
+        const ok = await refreshOverview();
+        if (!ok) return;
         $('login').classList.add('hidden');
         $('app').classList.remove('hidden');
         $('schoolName').textContent = overview.school ? overview.school.name : 'School';
-        $('tRoutes').textContent = overview.totals.routes;
-        $('tBuses').textContent = overview.totals.buses;
-        $('tChildren').textContent = overview.totals.children;
         await tick();
         timer = setInterval(tick, 2000);
       }
+
+      async function refreshOverview() {
+        const r = await api('/admin/overview');
+        if (r.status === 401) { $('signOut').onclick(); return false; }
+        overview = await r.json();
+        $('tRoutes').textContent = overview.totals.routes;
+        $('tBuses').textContent = overview.totals.buses;
+        $('tChildren').textContent = overview.totals.children;
+        // Routes without a bus are eligible for "Add bus".
+        $('busRoute').innerHTML = overview.routes
+          .filter((x) => !x.busId)
+          .map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>')
+          .join('') || '<option value="">(every route has a bus)</option>';
+        return true;
+      }
+
+      // Edit a bus's driver (delegated click on the table).
+      $('rows').addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-edit]');
+        if (!btn) return;
+        const route = overview.routes.find((x) => x.busId === btn.dataset.edit);
+        const driverName = prompt('Driver name', route ? route.driverName : '');
+        if (driverName === null) return;
+        const driverPhone = prompt('Driver phone (their login)', route ? route.driverPhone : '');
+        if (driverPhone === null) return;
+        const r = await api('/admin/buses/' + btn.dataset.edit, {
+          method: 'PATCH',
+          body: JSON.stringify({ driverName, driverPhone }),
+        });
+        if (r.ok) { await refreshOverview(); await tick(); }
+        else alert('Update failed');
+      });
+
+      $('addBusBtn').onclick = async () => {
+        setMsg('busMsg', '', '');
+        const r = await api('/admin/buses', {
+          method: 'POST',
+          body: JSON.stringify({
+            routeId: $('busRoute').value,
+            plateNumber: $('busPlate').value,
+            driverName: $('busDriver').value,
+            driverPhone: $('busPhone').value,
+          }),
+        });
+        if (r.ok) {
+          setMsg('busMsg', 'Bus added.', 'ok');
+          $('busPlate').value = $('busDriver').value = $('busPhone').value = '';
+          await refreshOverview();
+          await tick();
+        } else {
+          setMsg('busMsg', (await r.json()).message || 'Failed', 'err');
+        }
+      };
+
+      $('addRouteBtn').onclick = async () => {
+        setMsg('routeMsg', '', '');
+        const stops = $('routeStops').value
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .map((line) => {
+            const [name, lat, lng, time, mins] = line.split(',').map((x) => x.trim());
+            return {
+              name,
+              latitude: parseFloat(lat),
+              longitude: parseFloat(lng),
+              scheduledTime: time || '',
+              travelMinutesFromPrev: mins ? parseInt(mins, 10) : 0,
+            };
+          });
+        const r = await api('/admin/routes', {
+          method: 'POST',
+          body: JSON.stringify({ name: $('routeName').value, stops }),
+        });
+        if (r.ok) {
+          setMsg('routeMsg', 'Route added and now tracking.', 'ok');
+          $('routeName').value = $('routeStops').value = '';
+          await refreshOverview();
+          await tick();
+        } else {
+          setMsg('routeMsg', (await r.json()).message || 'Failed', 'err');
+        }
+      };
+
+      const setMsg = (id, text, cls) => { const el = $(id); el.textContent = text; el.className = 'msg ' + cls; };
 
       async function tick() {
         const r = await api('/admin/positions');
@@ -207,7 +319,12 @@
             return (
               '<tr>' +
               td('<strong>' + esc(p.routeName) + '</strong>') +
-              td((o.plateNumber || '—') + '<div class="src">' + (o.driverName || '') + '</div>') +
+              td(
+                (o.plateNumber ? esc(o.plateNumber) : '<span class="src">no bus</span>') +
+                '<div class="src">' + esc(o.driverName || '') +
+                (o.busId ? ' · <button class="link-btn" data-edit="' + o.busId + '">edit</button>' : '') +
+                '</div>'
+              ) +
               td(o.childCount ?? '—') +
               td('<span class="pill ' + p.status + '">' + label(p.status) + '</span>' +
                  (p.source ? '<div class="src">' + p.source + ' · ' + p.speedKmh + ' km/h</div>' : '')) +

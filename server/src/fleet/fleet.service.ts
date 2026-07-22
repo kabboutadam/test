@@ -32,11 +32,11 @@ export class FleetService implements OnModuleInit {
       this.repo.loadChildren(),
     ]);
     this.schoolsCache = schools;
-    this.routesCache = routes;
-    this.busesCache = buses;
     this.operatorsCache = operators;
     // Copy the mutable collections so writes update only our cache, never a
     // repository's internal array (the memory repo returns its store by ref).
+    this.routesCache = [...routes];
+    this.busesCache = [...buses];
     this.parentsCache = parents.map((p) => ({ ...p, childIds: [...p.childIds] }));
     this.childrenCache = [...children];
   }
@@ -109,5 +109,24 @@ export class FleetService implements OnModuleInit {
       parent.childIds.push(child.id);
     }
     return child;
+  }
+
+  async addRoute(route: Route): Promise<Route> {
+    await this.repo.addRoute(route);
+    this.routesCache.push(route);
+    return route;
+  }
+
+  async addBus(bus: Bus): Promise<Bus> {
+    await this.repo.addBus(bus);
+    this.busesCache.push(bus);
+    return bus;
+  }
+
+  async updateBus(bus: Bus): Promise<Bus> {
+    await this.repo.updateBus(bus);
+    const i = this.busesCache.findIndex((b) => b.id === bus.id);
+    if (i >= 0) this.busesCache[i] = bus;
+    return bus;
   }
 }

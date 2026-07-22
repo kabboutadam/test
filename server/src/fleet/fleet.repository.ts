@@ -16,4 +16,7 @@ export interface FleetRepository {
   loadOperators(): Promise<Operator[]>;
   loadChildren(): Promise<Child[]>;
   addChild(child: Child): Promise<void>;
+  addRoute(route: Route): Promise<void>;
+  addBus(bus: Bus): Promise<void>;
+  updateBus(bus: Bus): Promise<void>;
 }

@@ -154,18 +154,24 @@ when the driver's phone is locked.
 ### Phase 4a — Operator dashboard ✅ (this repo)
 - **Operator role:** a phone that matches an `Operator` → an operator token
   scoped to that operator's school. Guarded `/admin/*` reject non-operators.
-- **Admin API:** `GET /admin/overview` (school, routes with bus/driver/child
-  counts, totals) and `GET /admin/positions` (live status per route), both
+- **Admin API (read):** `GET /admin/overview` (school, routes with bus/driver/
+  child counts, totals) and `GET /admin/positions` (live status per route), both
   **scoped to the operator's school** — an operator never sees another school's
   fleet.
+- **Admin API (write):** `POST /admin/routes` (name + stops; the new route starts
+  tracking immediately via `PositionsService.registerRoute`), `POST /admin/buses`
+  (one per route), `PATCH /admin/buses/:id` (edit/reassign driver — the driver
+  phone becomes that driver's login). All validated against the operator's school
+  (cross-school → 403, duplicate bus → 400). Repository writes are memory + Prisma.
 - **Dashboard:** a self-contained page served by the API at `/admin.html`
-  (`server/public/`) — operator OTP login, then a live monitor of the school's
-  routes/buses (status, current→next stop, progress, child counts), polling
-  `/admin/positions` every 2s. No separate build toolchain.
-- **Verified:** curl (overview/positions, school-scoping, parent → 403) and a
-  **headless-browser smoke test** of the login flow + live table render.
-- **Still open:** write actions (create/edit routes, stops, buses; assign
-  drivers/children), and a map view on the dashboard.
+  (`server/public/`) — operator OTP login, a live monitor polling
+  `/admin/positions` every 2s, plus **Add route / Add bus / edit driver** forms.
+  No separate build toolchain.
+- **Verified:** curl (read + write, school-scoping, parent → 403, cross-school →
+  403, duplicate → 400) and **headless-browser smoke tests** — login + live table,
+  and add-route + add-bus + edit-driver reflected live.
+- **Still open:** editing/removing stops & routes, assigning children from the
+  dashboard, and a map view.
 
 ### Phase 4b — Billing (next)
 - **Billing:** evaluate options given Lebanon's payment landscape — Apple/Google

@@ -2,19 +2,24 @@ import { buses, children, operators, parents, routes, schools } from '../domain/
 import { Bus, Child, Operator, Parent, Route, School } from '../domain/types';
 import { FleetRepository } from './fleet.repository';
 
-/** In-memory fleet data from the seed module. The zero-infra default. */
+/**
+ * In-memory fleet data from the seed module. The zero-infra default. Keeps its
+ * own copies of the mutable collections so operator/parent writes don't mutate
+ * the seed module (and never alias FleetService's cache).
+ */
 export class MemoryFleetRepository implements FleetRepository {
-  // Copy the children array so onboarding writes don't mutate the seed module.
+  private readonly routeRows: Route[] = [...routes];
+  private readonly busRows: Bus[] = [...buses];
   private readonly childRows: Child[] = [...children];
 
   async loadSchools(): Promise<School[]> {
     return schools;
   }
   async loadRoutes(): Promise<Route[]> {
-    return routes;
+    return this.routeRows;
   }
   async loadBuses(): Promise<Bus[]> {
-    return buses;
+    return this.busRows;
   }
   async loadParents(): Promise<Parent[]> {
     return parents;
@@ -25,7 +30,18 @@ export class MemoryFleetRepository implements FleetRepository {
   async loadChildren(): Promise<Child[]> {
     return this.childRows;
   }
+
   async addChild(child: Child): Promise<void> {
     this.childRows.push(child);
+  }
+  async addRoute(route: Route): Promise<void> {
+    this.routeRows.push(route);
+  }
+  async addBus(bus: Bus): Promise<void> {
+    this.busRows.push(bus);
+  }
+  async updateBus(bus: Bus): Promise<void> {
+    const i = this.busRows.findIndex((b) => b.id === bus.id);
+    if (i >= 0) this.busRows[i] = bus;
   }
 }

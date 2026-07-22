@@ -96,4 +96,51 @@ export class PrismaFleetRepository implements FleetRepository {
       },
     });
   }
+
+  async addRoute(route: Route): Promise<void> {
+    await this.prisma.route.create({
+      data: {
+        id: route.id,
+        name: route.name,
+        schoolId: route.schoolId,
+        stops: {
+          create: route.stops.map((s) => ({
+            id: s.id,
+            name: s.name,
+            order: s.order,
+            lat: s.location.latitude,
+            lng: s.location.longitude,
+            travelMinutesFromPrev: s.travelMinutesFromPrev,
+            scheduledTime: s.scheduledTime,
+          })),
+        },
+      },
+    });
+  }
+
+  async addBus(bus: Bus): Promise<void> {
+    await this.prisma.bus.create({
+      data: {
+        id: bus.id,
+        plateNumber: bus.plateNumber,
+        driverName: bus.driverName,
+        driverPhone: bus.driverPhone,
+        capacity: bus.capacity,
+        routeId: bus.routeId,
+      },
+    });
+  }
+
+  async updateBus(bus: Bus): Promise<void> {
+    await this.prisma.bus.update({
+      where: { id: bus.id },
+      data: {
+        plateNumber: bus.plateNumber,
+        driverName: bus.driverName,
+        driverPhone: bus.driverPhone,
+        capacity: bus.capacity,
+        routeId: bus.routeId,
+      },
+    });
+  }
 }

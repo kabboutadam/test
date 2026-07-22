@@ -98,6 +98,14 @@ This is the default (`app.json → expo.extra.useBackend = false`).
       current→next stop, progress). _(Route C belongs to the other school and is
       correctly not shown.)_
 - [ ] Optional: operator `+961 3 999 111` shows **Mount Lebanon School** (Route C).
+- [ ] **Add route:** in the "Add route" box, enter a name and a few stop lines
+      (`Name, lat, lng, HH:MM, minutesFromPrev`) → **Add route**. It appears in
+      the table and starts tracking within a couple of seconds.
+- [ ] **Add bus:** pick the new route in "Add bus", fill plate/driver/phone →
+      **Add bus**. The row now shows the bus/driver. (That driver phone can now
+      log in as a driver.)
+- [ ] **Edit driver:** click **edit** on a bus row, change the driver → the row
+      updates.
 
 ## 3. Security spot-checks (optional, reassuring)
 
