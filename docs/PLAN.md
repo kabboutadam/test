@@ -53,10 +53,11 @@ segment.
   `BusPosition`. iOS uses Apple Maps (no key); Android needs a Google Maps key in
   `app.json` and a dev build. Schematic remains the offline/low-data fallback.
 
-### Phase 1b — Map polish (next)
-- Follow-the-bus camera; animate the marker between position updates.
-- Geocode/lay out real road-following route polylines instead of straight
-  segments between stops (Directions API or offline routing).
+### Phase 1b — Map polish
+- ✅ Follow-the-bus camera (with "Whole route" fit and auto-release on pan).
+- ✅ Smooth marker tweening between position updates (AnimatedRegion).
+- ⬜ Real road-following route polylines instead of straight segments between
+  stops (Directions API or offline routing).
 
 ### Phase 2 — Backend + real GPS
 - **Backend:** a small API (suggested: Node/NestJS or Supabase) owning
