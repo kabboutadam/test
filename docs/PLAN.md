@@ -103,10 +103,27 @@ when the driver's phone is locked.
   (`expo-secure-store`), and the parent home/account now load children +
   subscription from the live API; the paywall activates via `POST /me/subscription`.
 
-### Phase 3b — Notifications (next)
-- Push notifications with `expo-notifications`: configurable triggers
-  ("notify me at 2 stops away", "arriving", "missed pickup"). The server already
-  computes stops-away per route, so triggers hang off the position stream.
+### Phase 3b — Notifications ✅ (this repo)
+- **Server push:** `NotificationsService` subscribes to the position stream and,
+  per child on each route, fires "3 stops away" / "1 stop away" / "arriving" via
+  the Expo Push API. A `NotificationDecider` sends each threshold once per
+  route-run (re-arming on the next run) — unit-tested in
+  `notify-decider.spec.ts`. Devices register an Expo push token at
+  `POST /me/push-token` (guarded). Because the trigger lives on the server, push
+  works with the app closed.
+- **App:** simulator mode fires the same thresholds as **local** notifications
+  from the position stream (works in Expo Go, no server/EAS); backend mode
+  registers the device token and relies on server push (local firing disabled to
+  avoid duplicates). Toggle under Account → Notifications.
+- **Two real-world requirements** (documented, not needed for the local demo):
+  1. Remote Expo push tokens need an **EAS `projectId`** in
+     `app.json → expo.extra.eas.projectId` (and a physical device).
+  2. The server host must be allowed to reach **`exp.host`** (egress) to deliver.
+- **Still open:** "missed pickup"/geofence alerts, per-parent threshold
+  preferences, and persisting push tokens (a `PushToken` table) instead of the
+  in-memory store.
+
+### Phase 3c — Onboarding & multi-school (next)
 - Onboarding to link parents ↔ children ↔ stops; support multiple schools.
 
 ### Phase 4 — Billing + operator dashboard

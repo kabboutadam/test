@@ -62,6 +62,10 @@ export class FleetService implements OnModuleInit {
     return this.childrenCache.filter((c) => c.parentId === parentId);
   }
 
+  getChildrenForRoute(routeId: string): Child[] {
+    return this.childrenCache.filter((c) => c.routeId === routeId);
+  }
+
   getChild(id: string): Child | undefined {
     return this.childrenCache.find((c) => c.id === id);
   }

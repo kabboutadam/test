@@ -9,5 +9,6 @@ import { PositionsService } from './positions.service';
   imports: [FleetModule],
   controllers: [PositionsController],
   providers: [PositionsService, PositionsGateway],
+  exports: [PositionsService],
 })
 export class PositionsModule {}

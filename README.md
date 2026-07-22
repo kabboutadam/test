@@ -96,10 +96,15 @@ Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route�
 ```
 
 - **Server:** REST for routes/plans, **phone-OTP auth** (JWT), guarded `/me/*`
-  parent data, and live `BusPosition` over Socket.IO. Raw driver GPS is snapped
-  onto the route polyline to compute "stops away". Routes with no live driver are
-  advanced by a server-side simulator. Data is in-memory by default or **Postgres
-  via Prisma** (`USE_PRISMA=true`). See [`server/README.md`](server/README.md).
+  parent data, live `BusPosition` over Socket.IO, and **push notifications**
+  ("3 stops away" / "1 stop" / "arriving" via the Expo Push API). Raw driver GPS
+  is snapped onto the route polyline to compute "stops away". Routes with no live
+  driver are advanced by a server-side simulator. Data is in-memory by default or
+  **Postgres via Prisma** (`USE_PRISMA=true`). See [`server/README.md`](server/README.md).
+- **Notifications:** Account → **Bus approach alerts**. In simulator mode the app
+  fires the alerts locally from the position stream (works in Expo Go). In
+  backend mode the server sends push (works with the app closed) — which needs an
+  EAS `projectId` in `app.json` and the server allowed to reach `exp.host`.
 - **Driver mode:** Account → **Driver mode**. Pick a route, then stream
   "Simulate route" (synthetic GPS, great for demos) or "Device GPS".
 - **Parent app source:** controlled by `app.json → expo.extra.useBackend`.

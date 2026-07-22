@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
 import { FleetModule } from './fleet/fleet.module';
 import { MeModule } from './me/me.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PositionsModule } from './positions/positions.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
@@ -11,6 +12,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     AuthModule,
     FleetModule,
     MeModule,
+    NotificationsModule,
     PositionsModule,
     SubscriptionsModule,
   ],

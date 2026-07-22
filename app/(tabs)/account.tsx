@@ -1,19 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { config } from '@/api/config';
 import { entitles, statusLabel } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
 import { useAuth } from '@/store/AuthContext';
+import { useNotifications } from '@/store/NotificationsContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
 export default function AccountScreen() {
   const { parent, children, subscription, resetSimulation, positionMode } =
     useApp();
   const { signOut } = useAuth();
+  const { enabled: notifyEnabled, setEnabled: setNotifyEnabled } =
+    useNotifications();
   const insets = useSafeAreaInsets();
 
   return (
@@ -64,6 +67,22 @@ export default function AccountScreen() {
           </View>
         </View>
       ))}
+
+      <Text style={styles.sectionTitle}>Notifications</Text>
+      <View style={styles.row}>
+        <Ionicons name="notifications" size={20} color={colors.primary} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowTitle}>Bus approach alerts</Text>
+          <Text style={styles.rowSub}>
+            Get notified at 3 stops, 1 stop, and arriving
+          </Text>
+        </View>
+        <Switch
+          value={notifyEnabled}
+          onValueChange={setNotifyEnabled}
+          trackColor={{ true: colors.primary }}
+        />
+      </View>
 
       <Text style={styles.sectionTitle}>Demo controls</Text>
       <Pressable style={styles.row} onPress={resetSimulation}>

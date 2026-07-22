@@ -43,6 +43,8 @@ Guarded — require `Authorization: Bearer <token>`, scoped to the token's paren
 | GET  | `/api/me/children` | The parent's children |
 | GET  | `/api/me/subscription` | Current subscription |
 | POST | `/api/me/subscription` | Activate a plan (mock) |
+| POST | `/api/me/push-token` | Register this device's Expo push token |
+| DELETE | `/api/me/push-token` | Unregister a push token |
 
 ## Auth
 
@@ -51,6 +53,21 @@ no SMS provider yet, so the code is logged and, when `NODE_ENV !== 'production'`
 returned in the response for testing. Replace `AuthService.deliverOtp` with a
 real SMS gateway. Parents are matched by phone (normalized), so the seed parent
 `+961 3 555 777` can log in.
+
+## Push notifications
+
+`NotificationsService` subscribes to the position stream and, for each child on a
+route, fires "3 stops away" / "1 stop away" / "arriving" via the Expo Push API.
+The `NotificationDecider` (unit-tested in `notify-decider.spec.ts`) sends each
+threshold once per route-run and re-arms on the next run. Devices register an
+Expo push token via `POST /me/push-token`.
+
+To actually deliver: the server host must be allowed to reach `exp.host`
+(egress), and the app must supply a real Expo push token (needs an EAS
+`projectId` + a physical device). Tokens are stored in memory — add a
+`PushToken` table for production.
+
+Run the decider test: `npx ts-node src/notifications/notify-decider.spec.ts`
 
 ## Database (Prisma / Postgres)
 
@@ -106,6 +123,7 @@ src/
   auth/          phone-OTP, JWT, JwtAuthGuard, @CurrentUser
   fleet/         routes / buses (REST) + cached read service + repositories
   me/            guarded parent data (children, subscription)
+  notifications/ push decider (tested), Expo push client, token store, /me/push-token
   positions/     PositionsService (state + sim), Socket.IO gateway, REST controller
   subscriptions/ plans, entitlement, activation + repositories
   prisma/        lazy PrismaClient (loaded only when USE_PRISMA=true)

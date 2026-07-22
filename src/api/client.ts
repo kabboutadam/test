@@ -67,6 +67,13 @@ export function activateSubscription(
   return request('/me/subscription', { method: 'POST', body: { planId }, token });
 }
 
+export function registerPushToken(
+  token: string,
+  pushToken: string,
+): Promise<{ ok: boolean }> {
+  return request('/me/push-token', { method: 'POST', body: { token: pushToken }, token });
+}
+
 // --- Public ---
 
 export function fetchRoutes(): Promise<Route[]> {

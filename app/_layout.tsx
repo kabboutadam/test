@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { config } from '@/api/config';
 import { AppProvider } from '@/store/AppContext';
 import { AuthProvider, useAuth } from '@/store/AuthContext';
+import { NotificationsProvider } from '@/store/NotificationsContext';
 import { colors } from '@/theme/theme';
 
 export default function RootLayout() {
@@ -15,8 +16,10 @@ export default function RootLayout() {
       <AuthProvider>
         <AuthGate>
           <AppProvider>
-            <StatusBar style="light" />
-            <RootStack />
+            <NotificationsProvider>
+              <StatusBar style="light" />
+              <RootStack />
+            </NotificationsProvider>
           </AppProvider>
         </AuthGate>
       </AuthProvider>
