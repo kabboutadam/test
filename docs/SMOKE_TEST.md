@@ -71,9 +71,11 @@ This is the default (`app.json → expo.extra.useBackend = false`).
 - [ ] Try **Device GPS** while walking — the bus follows you (it must be within
       ~1.5 km of the route or the server rejects it as off-route).
 
-### 2f. Subscription
+### 2f. Subscription (billing)
 - [ ] Home banner / Account → **Manage plan** → pick a plan → **Subscribe**.
-- [ ] Status flips to **Active** and persists (it's saved on the server).
+- [ ] The button shows a brief processing state (checkout → confirm), then status
+      flips to **Active** and persists. (Uses the mock payment provider — no real
+      charge; a subscription only activates after the payment is confirmed.)
 
 ### 2g. Onboarding — add a child
 - [ ] Account → **Add child** (or the Home **Add child** button).

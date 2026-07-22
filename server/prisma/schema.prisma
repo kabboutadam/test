@@ -93,3 +93,16 @@ model Subscription {
   plan     String? // 'monthly' | 'yearly'
   renewsAt String?
 }
+
+model Payment {
+  id          String  @id
+  parentId    String
+  planId      String // 'monthly' | 'yearly'
+  amountUsd   Float
+  status      String // 'pending' | 'paid' | 'failed'
+  provider    String
+  providerRef String?
+  createdAt   String
+
+  @@index([parentId])
+}

@@ -12,11 +12,7 @@ import { CurrentParent } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Child, Subscription } from '../domain/types';
 import { FleetService } from '../fleet/fleet.service';
-import { Plan, SubscriptionsService } from '../subscriptions/subscriptions.service';
-
-interface ActivateBody {
-  planId: Plan['id'];
-}
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 interface AddChildBody {
   name: string;
@@ -74,12 +70,5 @@ export class MeController {
   getSubscription(@CurrentParent() parentId: string): Promise<Subscription> {
     return this.subs.getForParent(parentId);
   }
-
-  @Post('subscription')
-  activate(
-    @CurrentParent() parentId: string,
-    @Body() body: ActivateBody,
-  ): Promise<Subscription> {
-    return this.subs.activate(parentId, body.planId);
-  }
+  // Subscriptions activate only through a confirmed payment — see /me/billing.
 }

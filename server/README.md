@@ -45,7 +45,8 @@ Guarded — require `Authorization: Bearer <token>`, scoped to the token's paren
 | GET  | `/api/me/children` | The parent's children |
 | POST | `/api/me/children` | Add a child (onboarding) |
 | GET  | `/api/me/subscription` | Current subscription |
-| POST | `/api/me/subscription` | Activate a plan (mock) |
+| POST | `/api/me/billing/checkout` | Start a checkout (creates a pending payment) |
+| POST | `/api/me/billing/confirm` | Confirm payment → activates the subscription |
 | POST | `/api/me/push-token` | Register this device's Expo push token |
 | DELETE | `/api/me/push-token` | Unregister a push token |
 
@@ -92,6 +93,16 @@ To actually deliver: the server host must be allowed to reach `exp.host`
 `PushToken` table for production.
 
 Run the decider test: `npx ts-node src/notifications/notify-decider.spec.ts`
+
+## Billing
+
+Subscriptions activate **only** through a confirmed payment. `checkout` creates a
+`pending` payment; `confirm` verifies it and then activates the subscription. A
+`PaymentProvider` interface abstracts the gateway — the default
+`MockPaymentProvider` confirms synchronously (no real money). To go live,
+implement the interface for Stripe or a Lebanese gateway (e.g. Areeba) and route
+its **webhook** into `BillingService.confirm`; bind it in `BillingModule`.
+Payments persist via a repository (memory + Prisma `Payment`).
 
 ## Database (Prisma / Postgres)
 
@@ -152,7 +163,8 @@ src/
   domain/        types, geo (Haversine + route projection), phone util, seed data
   auth/          phone-OTP, JWT, JwtAuthGuard, @CurrentUser
   fleet/         routes / buses (REST) + cached read service + repositories
-  admin/         guarded operator dashboard API (overview, live positions)
+  admin/         guarded operator dashboard API (overview, live positions, writes)
+  billing/       payment provider abstraction, checkout/confirm, Payment repo
   me/            guarded parent data (children, subscription)
   notifications/ push decider (tested), Expo push client, token store, /me/push-token
   positions/     PositionsService (state + sim), Socket.IO gateway, REST controller

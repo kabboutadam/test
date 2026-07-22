@@ -1,7 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { plans, Plan, statusLabel } from '@/services/subscription';
@@ -20,10 +27,19 @@ export default function PaywallScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<Plan['id']>('yearly');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function onSubscribe() {
-    subscribe(selected);
-    router.back();
+  async function onSubscribe() {
+    setBusy(true);
+    setError(null);
+    try {
+      await subscribe(selected);
+      router.back();
+    } catch {
+      setError('Payment could not be completed. Please try again.');
+      setBusy(false);
+    }
   }
 
   return (
@@ -71,15 +87,25 @@ export default function PaywallScreen() {
         );
       })}
 
-      <Pressable style={styles.cta} onPress={onSubscribe}>
-        <Text style={styles.ctaText}>
-          Subscribe {selected === 'yearly' ? 'yearly' : 'monthly'}
-        </Text>
+      {error && <Text style={styles.error}>{error}</Text>}
+
+      <Pressable
+        style={[styles.cta, busy && styles.ctaDisabled]}
+        onPress={onSubscribe}
+        disabled={busy}
+      >
+        {busy ? (
+          <ActivityIndicator color={colors.onPrimary} />
+        ) : (
+          <Text style={styles.ctaText}>
+            Subscribe {selected === 'yearly' ? 'yearly' : 'monthly'}
+          </Text>
+        )}
       </Pressable>
 
       <Text style={styles.disclaimer}>
-        Demo only — no real payment is processed. Wire a billing provider before
-        release (see docs/PLAN.md).
+        Demo only — the mock payment provider is used. Swap in a real gateway
+        (Stripe or a Lebanese provider) before release (see docs/PLAN.md).
       </Text>
     </ScrollView>
   );
@@ -120,6 +146,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   ctaText: { color: colors.onPrimary, fontSize: 17, fontWeight: '700' },
+  ctaDisabled: { opacity: 0.6 },
+  error: { color: colors.danger, fontSize: 14, textAlign: 'center' },
   disclaimer: {
     fontSize: 12,
     color: colors.textMuted,

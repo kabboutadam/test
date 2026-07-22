@@ -173,12 +173,29 @@ when the driver's phone is locked.
 - **Still open:** editing/removing stops & routes, assigning children from the
   dashboard, and a map view.
 
-### Phase 4b — Billing (next)
-- **Billing:** evaluate options given Lebanon's payment landscape — Apple/Google
-  in-app purchase (simplest cross-border), a regional gateway (e.g. Areeba /
-  local bank gateways), or school-collected fees with app-side entitlement.
-  `SubscriptionsService.entitles()` (server) / `services/subscription.ts#entitles()`
-  (app) is the single check to back with a verified receipt.
+### Phase 4b — Billing ✅ (this repo)
+- **Payment-gated subscriptions:** a subscription activates **only** through a
+  confirmed payment. `POST /me/billing/checkout` creates a *pending* `Payment`;
+  `POST /me/billing/confirm` verifies it and then activates the subscription
+  server-side. The direct activate endpoint was removed, so the client can no
+  longer self-grant access.
+- **Provider abstraction:** a `PaymentProvider` interface with a default
+  `MockPaymentProvider` (confirms synchronously, no real money). To go live,
+  implement the interface for Stripe or a Lebanese gateway (e.g. Areeba) and
+  route its **webhook** into `BillingService.confirm` — nothing else changes.
+- **Payments persisted** via a repository (memory + Prisma `Payment` model).
+  Confirm is idempotent; cross-parent/bogus payments are rejected.
+- **App:** the paywall runs checkout → confirm with a processing state.
+- **Verified:** curl (trial → checkout stays trial → confirm activates; idempotent
+  re-confirm; old activate endpoint 404; bogus payment 404) and app typecheck.
+- **Still open:** the real provider decision + webhook signing, recurring renewal
+  / expiry handling, receipts, and refunds.
+
+### Phase 4b-note — choosing a provider for Lebanon
+Evaluate given the payment landscape: Apple/Google in-app purchase (simplest
+cross-border), a regional gateway (e.g. Areeba / local bank gateways), or
+school-collected fees with app-side entitlement. `SubscriptionsService.entitles()`
+(server) / `services/subscription.ts#entitles()` (app) remains the single gate.
 
 ### Phase 5 — Reliability & scale
 - Offline handling, GPS gap smoothing, driver "route ended" detection.

@@ -75,11 +75,25 @@ export function fetchSubscription(token: string): Promise<Subscription> {
   return request('/me/subscription', { token });
 }
 
-export function activateSubscription(
+export interface CheckoutResult {
+  paymentId: string;
+  checkoutId: string;
+  provider: string;
+  amountUsd: number;
+  redirectUrl?: string;
+}
+
+/** Start a checkout — creates a pending payment; does not yet activate. */
+export function createCheckout(
   token: string,
   planId: 'monthly' | 'yearly',
-): Promise<Subscription> {
-  return request('/me/subscription', { method: 'POST', body: { planId }, token });
+): Promise<CheckoutResult> {
+  return request('/me/billing/checkout', { method: 'POST', body: { planId }, token });
+}
+
+/** Confirm a payment; on success the subscription is activated server-side. */
+export function confirmPayment(token: string, paymentId: string): Promise<Subscription> {
+  return request('/me/billing/confirm', { method: 'POST', body: { paymentId }, token });
 }
 
 export function registerPushToken(

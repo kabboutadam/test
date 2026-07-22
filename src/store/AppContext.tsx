@@ -115,7 +115,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       positionMode: config.useBackend ? 'backend' : 'simulator',
       subscribe: async (planId: Plan['id']) => {
         if (config.useBackend && token) {
-          setSubscription(await api.activateSubscription(token, planId));
+          // Real billing: create a checkout, then confirm the payment. The
+          // subscription only activates once the payment is confirmed paid.
+          const { paymentId } = await api.createCheckout(token, planId);
+          setSubscription(await api.confirmPayment(token, paymentId));
         } else {
           setSubscription(activatePlan(planId));
         }
