@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -9,7 +10,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
+import { AuthService, AuthUser } from '../auth/auth.service';
 import { LatLng } from '../domain/types';
+import { FleetService } from '../fleet/fleet.service';
 import { PositionsService } from './positions.service';
 
 interface SubscribePayload {
@@ -22,22 +25,30 @@ interface DriverGpsPayload {
   speedKmh?: number;
 }
 
+type AuthedSocket = Socket & { data: { user?: AuthUser } };
+
 /**
- * Realtime channel for live positions.
+ * Realtime channel for live positions — authenticated and authorized.
  *
- * Parents:  emit `subscribe {routeId}` -> join that route's room and receive
- *           `position` events every time the bus moves.
- * Drivers:  emit `driver:gps {routeId, location, speedKmh}` -> feed the bus's
- *           real position, which is snapped to the route and rebroadcast.
+ * Every connection must present a valid JWT (socket handshake `auth.token`).
+ * Then:
+ *   - Parents may `subscribe` only to routes their own children ride.
+ *   - Drivers may send `driver:gps` only for their assigned route.
+ *
+ * This is what stops anyone from tracking arbitrary children or spoofing a bus.
  */
 @WebSocketGateway({ cors: { origin: '*' } })
-export class PositionsGateway implements OnGatewayInit {
+export class PositionsGateway implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger(PositionsGateway.name);
 
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly positions: PositionsService) {}
+  constructor(
+    private readonly positions: PositionsService,
+    private readonly auth: AuthService,
+    private readonly fleet: FleetService,
+  ) {}
 
   afterInit(): void {
     // Fan every position update out to the subscribers of that route.
@@ -46,34 +57,80 @@ export class PositionsGateway implements OnGatewayInit {
     });
   }
 
+  async handleConnection(client: AuthedSocket): Promise<void> {
+    const token =
+      (client.handshake.auth?.token as string | undefined) ??
+      (client.handshake.query?.token as string | undefined);
+    if (!token) {
+      this.deny(client, 'missing token');
+      return;
+    }
+    try {
+      client.data.user = await this.auth.verifyToken(token);
+    } catch {
+      this.deny(client, 'invalid token');
+    }
+  }
+
   @SubscribeMessage('subscribe')
   onSubscribe(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthedSocket,
     @MessageBody() body: SubscribePayload,
-  ): void {
-    if (!body?.routeId) return;
+  ): { ok: boolean } {
+    const user = client.data.user;
+    if (!user || user.role !== 'parent' || !body?.routeId) return { ok: false };
+
+    if (!this.parentRoutes(user.parentId).has(body.routeId)) {
+      this.logger.warn(
+        `Parent ${user.parentId} denied subscribe to ${body.routeId}`,
+      );
+      return { ok: false };
+    }
+
     client.join(room(body.routeId));
     const current = this.positions.getForRoute(body.routeId);
     if (current) client.emit('position', current);
+    return { ok: true };
   }
 
   @SubscribeMessage('unsubscribe')
   onUnsubscribe(
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: AuthedSocket,
     @MessageBody() body: SubscribePayload,
   ): void {
     if (body?.routeId) client.leave(room(body.routeId));
   }
 
   @SubscribeMessage('driver:gps')
-  onDriverGps(@MessageBody() body: DriverGpsPayload): { ok: boolean } {
-    if (!body?.routeId || !body.location) return { ok: false };
-    const updated = this.positions.ingestGps(
-      body.routeId,
-      body.location,
-      body.speedKmh,
-    );
+  onDriverGps(
+    @ConnectedSocket() client: AuthedSocket,
+    @MessageBody() body: DriverGpsPayload,
+  ): { ok: boolean } {
+    const user = client.data.user;
+    if (!user || user.role !== 'driver' || !body?.routeId || !body.location) {
+      return { ok: false };
+    }
+    // A driver may only report for the route their bus is assigned to.
+    if (body.routeId !== user.routeId) {
+      this.logger.warn(
+        `Driver ${user.busId} denied gps for ${body.routeId} (assigned ${user.routeId})`,
+      );
+      return { ok: false };
+    }
+    const updated = this.positions.ingestGps(body.routeId, body.location, body.speedKmh);
     return { ok: updated != null };
+  }
+
+  private parentRoutes(parentId: string): Set<string> {
+    return new Set(
+      this.fleet.getChildrenForParent(parentId).map((c) => c.routeId),
+    );
+  }
+
+  private deny(client: Socket, reason: string): void {
+    this.logger.warn(`Socket ${client.id} rejected: ${reason}`);
+    client.emit('unauthorized', { reason });
+    client.disconnect(true);
   }
 }
 

@@ -1,7 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
-import { AuthUser } from '../auth/auth.service';
-import { CurrentUser } from '../auth/current-user.decorator';
+import { CurrentParent } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Child, Subscription } from '../domain/types';
 import { FleetService } from '../fleet/fleet.service';
@@ -11,7 +10,7 @@ interface ActivateBody {
   planId: Plan['id'];
 }
 
-/** Everything scoped to the authenticated parent. Requires a Bearer token. */
+/** Everything scoped to the authenticated parent. Requires a parent token. */
 @UseGuards(JwtAuthGuard)
 @Controller('me')
 export class MeController {
@@ -21,20 +20,20 @@ export class MeController {
   ) {}
 
   @Get('children')
-  getChildren(@CurrentUser() user: AuthUser): Child[] {
-    return this.fleet.getChildrenForParent(user.parentId);
+  getChildren(@CurrentParent() parentId: string): Child[] {
+    return this.fleet.getChildrenForParent(parentId);
   }
 
   @Get('subscription')
-  getSubscription(@CurrentUser() user: AuthUser): Promise<Subscription> {
-    return this.subs.getForParent(user.parentId);
+  getSubscription(@CurrentParent() parentId: string): Promise<Subscription> {
+    return this.subs.getForParent(parentId);
   }
 
   @Post('subscription')
   activate(
-    @CurrentUser() user: AuthUser,
+    @CurrentParent() parentId: string,
     @Body() body: ActivateBody,
   ): Promise<Subscription> {
-    return this.subs.activate(user.parentId, body.planId);
+    return this.subs.activate(parentId, body.planId);
   }
 }

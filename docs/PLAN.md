@@ -123,6 +123,21 @@ when the driver's phone is locked.
   preferences, and persisting push tokens (a `PushToken` table) instead of the
   in-memory store.
 
+### Phase 3d — Secure the realtime channel ✅ (this repo)
+- **Roles:** the JWT now carries a role — `parent` or `driver` (derived from the
+  phone: a bus's `driverPhone` → a driver token scoped to that route).
+- **Authenticated sockets:** every Socket.IO connection must present a valid JWT
+  in the handshake or it's rejected. Parents may subscribe **only** to routes
+  their own children ride; drivers may send `driver:gps` **only** for their
+  assigned route; roles can't cross. The public positions REST endpoint was
+  removed — positions flow only over the authorized socket.
+- **App:** the parent app sends its token in the socket handshake; the driver
+  screen signs in as a driver (OTP) and streams only its assigned route.
+- **Verified** with a socket harness: no-token rejected; parent confined to owned
+  routes; driver confined to its route; cross-role actions denied.
+- **Still open:** rate-limiting/abuse controls on `driver:gps`, and rotating the
+  `JWT_SECRET` / short-lived tokens with refresh.
+
 ### Phase 3c — Onboarding & multi-school (next)
 - Onboarding to link parents ↔ children ↔ stops; support multiple schools.
 

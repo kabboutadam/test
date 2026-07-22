@@ -7,7 +7,7 @@
 
 import { io, Socket } from 'socket.io-client';
 
-import { BusPosition, Route } from '@/models/types';
+import { BusPosition } from '@/models/types';
 import { socketUrl } from '@/api/config';
 
 export type PositionsListener = (positions: Record<string, BusPosition>) => void;
@@ -28,11 +28,17 @@ export class BackendPositionSource implements PositionSource {
   private readonly positions: Record<string, BusPosition> = {};
   private readonly listeners = new Set<PositionsListener>();
 
-  constructor(private readonly routeIds: string[]) {}
+  constructor(
+    private readonly routeIds: string[],
+    private readonly token: string,
+  ) {}
 
   start(): void {
     if (this.socket) return;
-    const socket = io(socketUrl, { transports: ['websocket'] });
+    const socket = io(socketUrl, {
+      transports: ['websocket'],
+      auth: { token: this.token },
+    });
     this.socket = socket;
 
     socket.on('connect', () => {
@@ -65,13 +71,4 @@ export class BackendPositionSource implements PositionSource {
     const snapshot = { ...this.positions };
     for (const l of this.listeners) l(snapshot);
   }
-}
-
-/**
- * Factory: choose the source. Kept here so AppContext stays declarative.
- * The local simulator (BusSimulator) already satisfies PositionSource
- * structurally, so it's constructed by the caller and passed through.
- */
-export function makeBackendSource(routes: Route[]): BackendPositionSource {
-  return new BackendPositionSource(routes.map((r) => r.id));
 }

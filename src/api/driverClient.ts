@@ -12,9 +12,13 @@ import { LatLng } from '@/models/types';
 export class DriverClient {
   private socket: Socket | null = null;
 
-  connect(): void {
+  /** Connect with a driver JWT; the server authorizes gps against its route. */
+  connect(token: string): void {
     if (this.socket) return;
-    this.socket = io(socketUrl, { transports: ['websocket'] });
+    this.socket = io(socketUrl, {
+      transports: ['websocket'],
+      auth: { token },
+    });
   }
 
   sendGps(routeId: string, location: LatLng, speedKmh?: number): void {

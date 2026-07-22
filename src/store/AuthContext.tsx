@@ -61,6 +61,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       verifyOtp: async (phone, code) => {
         const res = await api.verifyOtp(phone, code);
+        if (res.role !== 'parent' || !res.parentId) {
+          throw new api.ApiError(403, 'This number is not a parent account.');
+        }
         await Promise.all([
           SecureStore.setItemAsync(TOKEN_KEY, res.token),
           SecureStore.setItemAsync(PARENT_KEY, res.parentId),

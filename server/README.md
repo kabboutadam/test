@@ -51,8 +51,12 @@ Guarded — require `Authorization: Bearer <token>`, scoped to the token's paren
 Phone-OTP → JWT (`@nestjs/jwt`, 30-day expiry, `JWT_SECRET` from env). There is
 no SMS provider yet, so the code is logged and, when `NODE_ENV !== 'production'`,
 returned in the response for testing. Replace `AuthService.deliverOtp` with a
-real SMS gateway. Parents are matched by phone (normalized), so the seed parent
-`+961 3 555 777` can log in.
+real SMS gateway.
+
+The **role is derived from the phone**: a parent phone → a `parent` token; a
+bus's `driverPhone` → a `driver` token scoped to that bus's route. Seed logins:
+parent `+961 3 555 777`, Route A driver `+961 3 000 111`, Route B driver
+`+961 3 000 222`. Parent-only REST (`/me/*`) rejects driver tokens.
 
 ## Push notifications
 
@@ -86,13 +90,20 @@ and `SubscriptionRepository` have memory + Prisma implementations; the Prisma
 ones (and `@prisma/client`) are dynamically imported only when enabled, so
 memory mode needs neither a database nor `prisma generate`.
 
-## Socket.IO
+## Socket.IO (authenticated)
 
-Connect to the server root (no `/api` prefix).
+Connect to the server root (no `/api` prefix). **Every connection must present a
+JWT** in the handshake: `io(url, { auth: { token } })`. Connections without a
+valid token are rejected (`unauthorized` event, then disconnect).
 
-- **Parent:** `emit('subscribe', { routeId })` → then receives `position`
-  (`BusPosition`) events. `emit('unsubscribe', { routeId })` to stop.
-- **Driver:** `emit('driver:gps', { routeId, location, speedKmh? })`.
+- **Parent:** `emit('subscribe', { routeId })` → receives `position`
+  (`BusPosition`) events. Allowed **only for routes the parent's own children
+  ride**; other routes are refused. `emit('unsubscribe', { routeId })` to stop.
+- **Driver:** `emit('driver:gps', { routeId, location, speedKmh? })` — accepted
+  **only for the driver's assigned route** (from the token). Parents can't send
+  gps; drivers can't subscribe.
+
+Handlers ack `{ ok: boolean }`, so a denied action is observable client-side.
 
 ## How positions work
 
@@ -109,9 +120,8 @@ Connect to the server root (no `/api` prefix).
 
 - Fleet data is loaded once at startup (memory or Postgres) and cached, so hot
   paths (the positions tick) stay synchronous and never wait on the DB.
-- **Socket auth is still open** — the `driver:gps` event and route subscriptions
-  aren't authenticated yet. Add token checks on the gateway and per-driver route
-  authorization before production. REST parent data is already guarded.
+- Both REST and the socket are authenticated. Positions are read **only** over
+  the authorized socket — there is no public positions REST endpoint.
 - `src/domain/{types,geo}.ts` mirror the app's copies; extract a shared package
   when versioning the two together.
 

@@ -59,23 +59,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : initialSubscription,
   );
 
-  // Pick the position source once. BusSimulator satisfies PositionSource
-  // structurally, so both branches expose the same start/stop/subscribe/reset.
-  if (sourceRef.current == null) {
-    sourceRef.current = config.useBackend
-      ? new BackendPositionSource(routes.map((r) => r.id))
-      : new BusSimulator(routes);
-  }
-
+  // Wire up the position source. In simulator mode this runs once. In backend
+  // mode it (re)connects whenever the auth token changes — the token is sent in
+  // the socket handshake so the server can authorize the subscription.
   useEffect(() => {
-    const source = sourceRef.current!;
+    let source: PositionSource;
+    if (config.useBackend) {
+      if (!token) return; // wait until the parent has logged in
+      source = new BackendPositionSource(routes.map((r) => r.id), token);
+    } else {
+      source = new BusSimulator(routes);
+    }
+    sourceRef.current = source;
     const unsubscribe = source.subscribe(setPositions);
     source.start();
     return () => {
       unsubscribe();
       source.stop();
+      sourceRef.current = null;
     };
-  }, []);
+  }, [token]);
 
   // Load live children + subscription from the API in backend mode.
   useEffect(() => {

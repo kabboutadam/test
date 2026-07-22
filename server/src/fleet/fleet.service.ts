@@ -49,6 +49,11 @@ export class FleetService implements OnModuleInit {
     return this.busesCache.find((b) => b.routeId === routeId);
   }
 
+  getBusByDriverPhone(phone: string): Bus | undefined {
+    const target = normalizePhone(phone);
+    return this.busesCache.find((b) => normalizePhone(b.driverPhone) === target);
+  }
+
   getParent(id: string): Parent | undefined {
     return this.parentsCache.find((p) => p.id === id);
   }

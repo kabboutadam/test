@@ -43,10 +43,14 @@ export function requestOtp(phone: string): Promise<{ sent: boolean; devCode?: st
   return request('/auth/otp/request', { method: 'POST', body: { phone } });
 }
 
-export function verifyOtp(
-  phone: string,
-  code: string,
-): Promise<{ token: string; parentId: string }> {
+export interface VerifyResult {
+  token: string;
+  role: 'parent' | 'driver';
+  parentId?: string;
+  routeId?: string;
+}
+
+export function verifyOtp(phone: string, code: string): Promise<VerifyResult> {
   return request('/auth/otp/verify', { method: 'POST', body: { phone, code } });
 }
 

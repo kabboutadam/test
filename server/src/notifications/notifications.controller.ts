@@ -1,7 +1,6 @@
 import { Body, Controller, Delete, Post, UseGuards } from '@nestjs/common';
 
-import { AuthUser } from '../auth/auth.service';
-import { CurrentUser } from '../auth/current-user.decorator';
+import { CurrentParent } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PushTokenStore } from './push-token.store';
 
@@ -16,15 +15,15 @@ export class NotificationsController {
   constructor(private readonly tokens: PushTokenStore) {}
 
   @Post()
-  register(@CurrentUser() user: AuthUser, @Body() body: TokenBody): { ok: boolean } {
+  register(@CurrentParent() parentId: string, @Body() body: TokenBody): { ok: boolean } {
     if (!body?.token) return { ok: false };
-    this.tokens.add(user.parentId, body.token);
+    this.tokens.add(parentId, body.token);
     return { ok: true };
   }
 
   @Delete()
-  unregister(@CurrentUser() user: AuthUser, @Body() body: TokenBody): { ok: boolean } {
-    if (body?.token) this.tokens.remove(user.parentId, body.token);
+  unregister(@CurrentParent() parentId: string, @Body() body: TokenBody): { ok: boolean } {
+    if (body?.token) this.tokens.remove(parentId, body.token);
     return { ok: true };
   }
 }

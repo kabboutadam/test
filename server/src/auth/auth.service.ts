@@ -13,19 +13,29 @@ interface OtpEntry {
   expiresAt: number;
 }
 
-export interface AuthUser {
-  parentId: string;
-  phone: string;
+/**
+ * The authenticated identity carried in the JWT. A phone belongs to either a
+ * parent (sees their children) or a bus driver (streams that bus's GPS).
+ */
+export type AuthUser =
+  | { role: 'parent'; parentId: string; phone: string }
+  | { role: 'driver'; busId: string; routeId: string; phone: string };
+
+export interface VerifyResult {
+  token: string;
+  role: AuthUser['role'];
+  parentId?: string;
+  routeId?: string;
 }
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const isProd = process.env.NODE_ENV === 'production';
 
 /**
- * Phone-OTP auth. A parent requests a code for their phone, then verifies it to
- * receive a JWT. There is no SMS provider wired in yet, so in non-production the
- * code is logged and returned in the response for testing. Swap `deliverOtp`
- * for a real SMS gateway (e.g. a Lebanese aggregator, Twilio) for production.
+ * Phone-OTP auth. A user requests a code for their phone, then verifies it to
+ * receive a JWT. The role is derived from the phone: a parent phone → parent
+ * token; a bus's driverPhone → driver token scoped to that bus's route. No SMS
+ * provider yet, so in non-production the code is logged and returned for testing.
  */
 @Injectable()
 export class AuthService {
@@ -40,7 +50,10 @@ export class AuthService {
   /** Generate + "send" an OTP. Returns the code only in non-production. */
   async requestOtp(phone: string): Promise<{ sent: boolean; devCode?: string }> {
     const normalized = normalizePhone(phone);
-    if (!this.fleet.getParentByPhone(normalized)) {
+    const known =
+      this.fleet.getParentByPhone(normalized) ||
+      this.fleet.getBusByDriverPhone(normalized);
+    if (!known) {
       // Don't reveal whether a phone is registered; pretend success.
       this.logger.warn(`OTP requested for unknown phone ${normalized}`);
       return { sent: true };
@@ -52,20 +65,37 @@ export class AuthService {
     return isProd ? { sent: true } : { sent: true, devCode: code };
   }
 
-  /** Verify an OTP and issue a JWT. */
-  async verifyOtp(phone: string, code: string): Promise<{ token: string; parentId: string }> {
+  /** Verify an OTP and issue a role-scoped JWT. */
+  async verifyOtp(phone: string, code: string): Promise<VerifyResult> {
     const normalized = normalizePhone(phone);
     const entry = this.otps.get(normalized);
     if (!entry || entry.expiresAt < Date.now() || entry.code !== code) {
       throw new UnauthorizedException('Invalid or expired code');
     }
-    const parent = this.fleet.getParentByPhone(normalized);
-    if (!parent) throw new UnauthorizedException('No account for this phone');
-
     this.otps.delete(normalized);
-    const payload: AuthUser = { parentId: parent.id, phone: normalized };
-    const token = await this.jwt.signAsync(payload);
-    return { token, parentId: parent.id };
+
+    const parent = this.fleet.getParentByPhone(normalized);
+    if (parent) {
+      const payload: AuthUser = {
+        role: 'parent',
+        parentId: parent.id,
+        phone: normalized,
+      };
+      return { token: await this.jwt.signAsync(payload), role: 'parent', parentId: parent.id };
+    }
+
+    const bus = this.fleet.getBusByDriverPhone(normalized);
+    if (bus) {
+      const payload: AuthUser = {
+        role: 'driver',
+        busId: bus.id,
+        routeId: bus.routeId,
+        phone: normalized,
+      };
+      return { token: await this.jwt.signAsync(payload), role: 'driver', routeId: bus.routeId };
+    }
+
+    throw new UnauthorizedException('No account for this phone');
   }
 
   async verifyToken(token: string): Promise<AuthUser> {

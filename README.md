@@ -105,8 +105,12 @@ Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route�
   fires the alerts locally from the position stream (works in Expo Go). In
   backend mode the server sends push (works with the app closed) — which needs an
   EAS `projectId` in `app.json` and the server allowed to reach `exp.host`.
-- **Driver mode:** Account → **Driver mode**. Pick a route, then stream
-  "Simulate route" (synthetic GPS, great for demos) or "Device GPS".
+- **Driver mode:** Account → **Driver mode**. The driver signs in with their own
+  phone (e.g. **+961 3 000 111** for Route A) and can stream only their assigned
+  route — "Simulate route" (synthetic GPS, great for demos) or "Device GPS".
+- **Secured realtime:** the Socket.IO channel is authenticated — parents see only
+  their own children's routes and drivers can only report their own bus, so
+  nobody can track arbitrary children or spoof a bus.
 - **Parent app source:** controlled by `app.json → expo.extra.useBackend`.
   `false` (default) uses the built-in simulator and mock data so the app runs
   standalone with no login. `true` connects to the server: the app shows a
