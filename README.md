@@ -124,6 +124,11 @@ Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route�
 
 **Validating on a real device:** follow [`docs/SMOKE_TEST.md`](docs/SMOKE_TEST.md)
 — a step-by-step checklist for both simulator and backend modes.
+
+**Shipping to TestFlight:** [`docs/TESTFLIGHT.md`](docs/TESTFLIGHT.md) is a
+copy-paste runbook (EAS build + submit). The first build ships in self-contained
+simulator mode so testers need no backend; the app icon and iOS build settings
+are already configured.
 - **Parent app source:** controlled by `app.json → expo.extra.useBackend`.
   `false` (default) uses the built-in simulator and mock data so the app runs
   standalone with no login. `true` connects to the server: the app shows a

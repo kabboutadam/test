@@ -197,6 +197,16 @@ cross-border), a regional gateway (e.g. Areeba / local bank gateways), or
 school-collected fees with app-side entitlement. `SubscriptionsService.entitles()`
 (server) / `services/subscription.ts#entitles()` (app) remains the single gate.
 
+### Distribution — TestFlight ready ✅ (this repo)
+- App icon + splash/adaptive/favicon assets, iOS `bundleIdentifier`/`buildNumber`,
+  export-compliance flag, and `eas.json` build/submit profiles are configured.
+- First build ships in self-contained **simulator mode** so testers need no
+  backend. Runbook: `docs/TESTFLIGHT.md`. The build/submit run on the user's
+  machine (interactive Apple auth) — not automatable from the cloud sandbox.
+- **Before wider release:** an Apple Developer account, `eas init` to mint the
+  `projectId`, a real SMS provider (for backend-mode login), and a deployed
+  server if shipping backend mode.
+
 ### Phase 5 — Reliability & scale
 - Offline handling, GPS gap smoothing, driver "route ended" detection.
 - ETA model improvements (traffic, historical segment times).
