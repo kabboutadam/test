@@ -4,7 +4,7 @@
  * services depend only on the shapes, not on where they come from.
  */
 
-import { Bus, Child, Parent, Route, School, Subscription } from './types';
+import { Bus, Child, Operator, Parent, Route, School, Subscription } from './types';
 
 export const schools: School[] = [
   { id: 'sch_1', name: 'Beirut International College', location: { latitude: 33.8886, longitude: 35.4955 } },
@@ -61,6 +61,11 @@ export const buses: Bus[] = [
 
 export const parents: Parent[] = [
   { id: 'parent_1', name: 'Nour Khalil', email: 'nour.khalil@example.com', phone: '+961 3 555 777', childIds: ['child_1', 'child_2'] },
+];
+
+export const operators: Operator[] = [
+  { id: 'op_1', name: 'BIC Operations', phone: '+961 3 999 000', schoolId: 'sch_1' },
+  { id: 'op_2', name: 'Mount Lebanon Operations', phone: '+961 3 999 111', schoolId: 'sch_2' },
 ];
 
 export const children: Child[] = [

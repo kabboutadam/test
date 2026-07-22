@@ -1,5 +1,5 @@
-import { buses, children, parents, routes, schools } from '../domain/seed';
-import { Bus, Child, Parent, Route, School } from '../domain/types';
+import { buses, children, operators, parents, routes, schools } from '../domain/seed';
+import { Bus, Child, Operator, Parent, Route, School } from '../domain/types';
 import { FleetRepository } from './fleet.repository';
 
 /** In-memory fleet data from the seed module. The zero-infra default. */
@@ -18,6 +18,9 @@ export class MemoryFleetRepository implements FleetRepository {
   }
   async loadParents(): Promise<Parent[]> {
     return parents;
+  }
+  async loadOperators(): Promise<Operator[]> {
+    return operators;
   }
   async loadChildren(): Promise<Child[]> {
     return this.childRows;

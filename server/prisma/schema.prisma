@@ -12,11 +12,20 @@ datasource db {
 }
 
 model School {
-  id     String  @id
-  name   String
-  lat    Float
-  lng    Float
-  routes Route[]
+  id        String     @id
+  name      String
+  lat       Float
+  lng       Float
+  routes    Route[]
+  operators Operator[]
+}
+
+model Operator {
+  id       String @id
+  name     String
+  phone    String @unique
+  school   School @relation(fields: [schoolId], references: [id])
+  schoolId String
 }
 
 model Route {

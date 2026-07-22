@@ -19,13 +19,15 @@ interface OtpEntry {
  */
 export type AuthUser =
   | { role: 'parent'; parentId: string; phone: string }
-  | { role: 'driver'; busId: string; routeId: string; phone: string };
+  | { role: 'driver'; busId: string; routeId: string; phone: string }
+  | { role: 'operator'; operatorId: string; schoolId: string; phone: string };
 
 export interface VerifyResult {
   token: string;
   role: AuthUser['role'];
   parentId?: string;
   routeId?: string;
+  schoolId?: string;
 }
 
 const OTP_TTL_MS = 5 * 60 * 1000;
@@ -52,7 +54,8 @@ export class AuthService {
     const normalized = normalizePhone(phone);
     const known =
       this.fleet.getParentByPhone(normalized) ||
-      this.fleet.getBusByDriverPhone(normalized);
+      this.fleet.getBusByDriverPhone(normalized) ||
+      this.fleet.getOperatorByPhone(normalized);
     if (!known) {
       // Don't reveal whether a phone is registered; pretend success.
       this.logger.warn(`OTP requested for unknown phone ${normalized}`);
@@ -93,6 +96,17 @@ export class AuthService {
         phone: normalized,
       };
       return { token: await this.jwt.signAsync(payload), role: 'driver', routeId: bus.routeId };
+    }
+
+    const operator = this.fleet.getOperatorByPhone(normalized);
+    if (operator) {
+      const payload: AuthUser = {
+        role: 'operator',
+        operatorId: operator.id,
+        schoolId: operator.schoolId,
+        phone: normalized,
+      };
+      return { token: await this.jwt.signAsync(payload), role: 'operator', schoolId: operator.schoolId };
     }
 
     throw new UnauthorizedException('No account for this phone');

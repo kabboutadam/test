@@ -1,7 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 
 import { normalizePhone } from '../domain/phone';
-import { Bus, Child, Parent, Route, School } from '../domain/types';
+import { Bus, Child, Operator, Parent, Route, School } from '../domain/types';
 import { FLEET_REPOSITORY, FleetRepository } from './fleet.repository';
 
 /**
@@ -15,6 +15,7 @@ export class FleetService implements OnModuleInit {
   private routesCache: Route[] = [];
   private busesCache: Bus[] = [];
   private parentsCache: Parent[] = [];
+  private operatorsCache: Operator[] = [];
   private childrenCache: Child[] = [];
 
   constructor(
@@ -22,20 +23,31 @@ export class FleetService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const [schools, routes, buses, parents, children] = await Promise.all([
+    const [schools, routes, buses, parents, operators, children] = await Promise.all([
       this.repo.loadSchools(),
       this.repo.loadRoutes(),
       this.repo.loadBuses(),
       this.repo.loadParents(),
+      this.repo.loadOperators(),
       this.repo.loadChildren(),
     ]);
     this.schoolsCache = schools;
     this.routesCache = routes;
     this.busesCache = buses;
+    this.operatorsCache = operators;
     // Copy the mutable collections so writes update only our cache, never a
     // repository's internal array (the memory repo returns its store by ref).
     this.parentsCache = parents.map((p) => ({ ...p, childIds: [...p.childIds] }));
     this.childrenCache = [...children];
+  }
+
+  getSchool(id: string): School | undefined {
+    return this.schoolsCache.find((s) => s.id === id);
+  }
+
+  getOperatorByPhone(phone: string): Operator | undefined {
+    const target = normalizePhone(phone);
+    return this.operatorsCache.find((o) => normalizePhone(o.phone) === target);
   }
 
   getSchools(): School[] {

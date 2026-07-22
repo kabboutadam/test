@@ -114,6 +114,9 @@ Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route�
 - **Onboarding & multi-school:** two schools (Beirut & Mount Lebanon) with their
   own routes. Parents add a child via a school → route → stop flow
   (`POST /me/children`, or a local add in simulator mode).
+- **Operator dashboard:** a web dashboard at **`/admin.html`** (served by the API)
+  where a school operator signs in and monitors all their buses live — status,
+  current→next stop, progress, child counts. Scoped to their school only.
 
 **Validating on a real device:** follow [`docs/SMOKE_TEST.md`](docs/SMOKE_TEST.md)
 — a step-by-step checklist for both simulator and backend modes.

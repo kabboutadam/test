@@ -15,8 +15,8 @@ export const CurrentUser = createParamDecorator(
 );
 
 /**
- * Injects the authenticated parent's id, rejecting driver tokens. Use on
- * parent-only endpoints so a driver token can't reach a parent's data.
+ * Injects the authenticated parent's id, rejecting non-parent tokens. Use on
+ * parent-only endpoints so a driver/operator token can't reach a parent's data.
  */
 export const CurrentParent = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): string => {
@@ -26,5 +26,22 @@ export const CurrentParent = createParamDecorator(
       throw new ForbiddenException('Parent account required');
     }
     return user.parentId;
+  },
+);
+
+export interface OperatorContext {
+  operatorId: string;
+  schoolId: string;
+}
+
+/** Injects the authenticated operator (id + their school), rejecting others. */
+export const CurrentOperator = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): OperatorContext => {
+    const request = ctx.switchToHttp().getRequest<{ user: AuthUser }>();
+    const user = request.user;
+    if (user.role !== 'operator') {
+      throw new ForbiddenException('Operator account required');
+    }
+    return { operatorId: user.operatorId, schoolId: user.schoolId };
   },
 );

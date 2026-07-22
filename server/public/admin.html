@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BusMapp — Operator</title>
+    <style>
+      :root {
+        --primary: #0b6e4f;
+        --bg: #f5f7f6;
+        --surface: #fff;
+        --border: #e3e8e5;
+        --text: #1a2420;
+        --muted: #6b7a73;
+        --warn: #c77800;
+        --danger: #b3261e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header {
+        background: var(--primary);
+        color: #fff;
+        padding: 16px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header h1 { font-size: 18px; margin: 0; }
+      header .sub { font-size: 13px; opacity: 0.85; }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: none;
+        border-radius: 999px;
+        padding: 10px 18px;
+        font-weight: 700;
+      }
+      .btn-primary { background: var(--primary); color: #fff; }
+      .btn-ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.5); }
+      main { max-width: 1000px; margin: 0 auto; padding: 24px; }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+      }
+      .login { max-width: 380px; margin: 60px auto; text-align: center; }
+      .login h2 { margin: 0 0 6px; }
+      .login p { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+      input {
+        width: 100%;
+        font: inherit;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 12px;
+      }
+      .login button { width: 100%; }
+      .error { color: var(--danger); font-size: 14px; min-height: 18px; }
+      .stats { display: flex; gap: 12px; margin-bottom: 20px; }
+      .stat { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+      .stat .n { font-size: 28px; font-weight: 800; color: var(--primary); }
+      .stat .l { font-size: 13px; color: var(--muted); }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--border); font-size: 14px; }
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+      .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+      .en_route { background: #e6f2ec; color: var(--primary); }
+      .at_stop { background: #fff2dd; color: var(--warn); }
+      .completed { background: #eee; color: var(--muted); }
+      .not_started { background: #eee; color: var(--muted); }
+      .src { font-size: 11px; color: var(--muted); }
+      .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-right: 6px; animation: pulse 1.5s infinite; }
+      @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="login" class="login card">
+      <h2>BusMapp Operator</h2>
+      <p>Sign in with your operator phone.</p>
+      <input id="phone" value="+961 3 999 000" inputmode="tel" />
+      <input id="code" class="hidden" placeholder="6-digit code" inputmode="numeric" />
+      <button id="loginBtn" class="btn-primary">Send code</button>
+      <div id="loginError" class="error"></div>
+    </div>
+
+    <div id="app" class="hidden">
+      <header>
+        <div>
+          <h1 id="schoolName">—</h1>
+          <div class="sub"><span class="live-dot"></span><span id="updated">connecting…</span></div>
+        </div>
+        <button id="signOut" class="btn-ghost">Sign out</button>
+      </header>
+      <main>
+        <div class="stats">
+          <div class="stat"><div class="n" id="tRoutes">0</div><div class="l">Routes</div></div>
+          <div class="stat"><div class="n" id="tBuses">0</div><div class="l">Buses</div></div>
+          <div class="stat"><div class="n" id="tChildren">0</div><div class="l">Children</div></div>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Route</th><th>Bus / Driver</th><th>Children</th>
+                <th>Status</th><th>Current → Next stop</th><th>Progress</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const TOKEN_KEY = 'busmapp.admin.token';
+      let token = localStorage.getItem(TOKEN_KEY);
+      let overview = null;
+      let timer = null;
+
+      const $ = (id) => document.getElementById(id);
+      const api = (path, opts = {}) =>
+        fetch('/api' + path, {
+          ...opts,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: 'Bearer ' + token } : {}),
+            ...(opts.headers || {}),
+          },
+        });
+
+      // --- login ---
+      let step = 'phone';
+      $('loginBtn').onclick = async () => {
+        $('loginError').textContent = '';
+        try {
+          if (step === 'phone') {
+            const r = await api('/auth/otp/request', {
+              method: 'POST',
+              body: JSON.stringify({ phone: $('phone').value }),
+            });
+            const j = await r.json();
+            if (j.devCode) $('code').value = j.devCode;
+            $('code').classList.remove('hidden');
+            $('loginBtn').textContent = 'Verify';
+            step = 'code';
+          } else {
+            const r = await api('/auth/otp/verify', {
+              method: 'POST',
+              body: JSON.stringify({ phone: $('phone').value, code: $('code').value.trim() }),
+            });
+            if (!r.ok) throw new Error('bad code');
+            const j = await r.json();
+            if (j.role !== 'operator') throw new Error('not an operator account');
+            token = j.token;
+            localStorage.setItem(TOKEN_KEY, token);
+            start();
+          }
+        } catch (e) {
+          $('loginError').textContent =
+            e.message === 'not an operator account'
+              ? 'This number is not an operator account.'
+              : 'Invalid code or server unreachable.';
+        }
+      };
+
+      $('signOut').onclick = () => {
+        localStorage.removeItem(TOKEN_KEY);
+        token = null;
+        if (timer) clearInterval(timer);
+        $('app').classList.add('hidden');
+        $('login').classList.remove('hidden');
+      };
+
+      async function start() {
+        const r = await api('/admin/overview');
+        if (r.status === 401) return $('signOut').onclick();
+        overview = await r.json();
+        $('login').classList.add('hidden');
+        $('app').classList.remove('hidden');
+        $('schoolName').textContent = overview.school ? overview.school.name : 'School';
+        $('tRoutes').textContent = overview.totals.routes;
+        $('tBuses').textContent = overview.totals.buses;
+        $('tChildren').textContent = overview.totals.children;
+        await tick();
+        timer = setInterval(tick, 2000);
+      }
+
+      async function tick() {
+        const r = await api('/admin/positions');
+        if (r.status === 401) return $('signOut').onclick();
+        const positions = await r.json();
+        const byRoute = Object.fromEntries(overview.routes.map((x) => [x.id, x]));
+        $('rows').innerHTML = positions
+          .map((p) => {
+            const o = byRoute[p.routeId] || {};
+            const stops = p.currentStop
+              ? esc(p.currentStop) + (p.nextStop ? ' → ' + esc(p.nextStop) : '')
+              : '—';
+            return (
+              '<tr>' +
+              td('<strong>' + esc(p.routeName) + '</strong>') +
+              td((o.plateNumber || '—') + '<div class="src">' + (o.driverName || '') + '</div>') +
+              td(o.childCount ?? '—') +
+              td('<span class="pill ' + p.status + '">' + label(p.status) + '</span>' +
+                 (p.source ? '<div class="src">' + p.source + ' · ' + p.speedKmh + ' km/h</div>' : '')) +
+              td(stops) +
+              td('Stop ' + (p.stopIndex + 1) + ' / ' + p.stopsTotal) +
+              '</tr>'
+            );
+          })
+          .join('');
+        $('updated').textContent = 'Live · updated ' + new Date().toLocaleTimeString();
+      }
+
+      const td = (h) => '<td>' + h + '</td>';
+      const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const label = (s) => ({ en_route: 'En route', at_stop: 'At stop', completed: 'Completed', not_started: 'Not started' }[s] || s);
+
+      if (token) start();
+    </script>
+  </body>
+</html>

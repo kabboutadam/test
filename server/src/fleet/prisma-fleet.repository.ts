@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 
-import { Bus, Child, Parent, Route, School } from '../domain/types';
+import { Bus, Child, Operator, Parent, Route, School } from '../domain/types';
 import { FleetRepository } from './fleet.repository';
 
 /** Postgres-backed fleet data via Prisma. Maps DB rows to the domain shapes. */
@@ -57,6 +57,16 @@ export class PrismaFleetRepository implements FleetRepository {
       email: p.email,
       phone: p.phone,
       childIds: p.children.map((c) => c.id),
+    }));
+  }
+
+  async loadOperators(): Promise<Operator[]> {
+    const rows = await this.prisma.operator.findMany();
+    return rows.map((o) => ({
+      id: o.id,
+      name: o.name,
+      phone: o.phone,
+      schoolId: o.schoolId,
     }));
   }
 

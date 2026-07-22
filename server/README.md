@@ -49,6 +49,16 @@ Guarded — require `Authorization: Bearer <token>`, scoped to the token's paren
 | POST | `/api/me/push-token` | Register this device's Expo push token |
 | DELETE | `/api/me/push-token` | Unregister a push token |
 
+Operator — require an **operator** token, scoped to the operator's school:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET  | `/api/admin/overview` | School, routes (bus/driver/child counts), totals |
+| GET  | `/api/admin/positions` | Live status per route in the school |
+
+The **operator dashboard** is served at **`/admin.html`** (static, from
+`public/`): operator OTP login, then a live monitor polling `/admin/positions`.
+
 ## Auth
 
 Phone-OTP → JWT (`@nestjs/jwt`, 30-day expiry, `JWT_SECRET` from env). There is
@@ -57,9 +67,11 @@ returned in the response for testing. Replace `AuthService.deliverOtp` with a
 real SMS gateway.
 
 The **role is derived from the phone**: a parent phone → a `parent` token; a
-bus's `driverPhone` → a `driver` token scoped to that bus's route. Seed logins:
-parent `+961 3 555 777`, Route A driver `+961 3 000 111`, Route B driver
-`+961 3 000 222`. Parent-only REST (`/me/*`) rejects driver tokens.
+bus's `driverPhone` → a `driver` token scoped to that bus's route; an operator's
+phone → an `operator` token scoped to their school. Seed logins: parent
+`+961 3 555 777`; Route A driver `+961 3 000 111`, Route B driver
+`+961 3 000 222`; operators `+961 3 999 000` (Beirut IC) and `+961 3 999 111`
+(Mount Lebanon). `/me/*` requires a parent token; `/admin/*` requires an operator.
 
 ## Push notifications
 
@@ -135,6 +147,7 @@ src/
   domain/        types, geo (Haversine + route projection), phone util, seed data
   auth/          phone-OTP, JWT, JwtAuthGuard, @CurrentUser
   fleet/         routes / buses (REST) + cached read service + repositories
+  admin/         guarded operator dashboard API (overview, live positions)
   me/            guarded parent data (children, subscription)
   notifications/ push decider (tested), Expo push client, token store, /me/push-token
   positions/     PositionsService (state + sim), Socket.IO gateway, REST controller

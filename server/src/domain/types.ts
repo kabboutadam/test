@@ -59,6 +59,14 @@ export interface Parent {
   childIds: string[];
 }
 
+/** A school operator/admin who manages and monitors one school's fleet. */
+export interface Operator {
+  id: string;
+  name: string;
+  phone: string;
+  schoolId: string;
+}
+
 export type SubscriptionStatus = 'trial' | 'active' | 'expired' | 'none';
 
 export interface Subscription {

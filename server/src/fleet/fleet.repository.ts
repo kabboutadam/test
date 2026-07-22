@@ -1,4 +1,4 @@
-import { Bus, Child, Parent, Route, School } from '../domain/types';
+import { Bus, Child, Operator, Parent, Route, School } from '../domain/types';
 
 /** DI token for the fleet data source (memory or Prisma). */
 export const FLEET_REPOSITORY = 'FLEET_REPOSITORY';
@@ -13,6 +13,7 @@ export interface FleetRepository {
   loadRoutes(): Promise<Route[]>;
   loadBuses(): Promise<Bus[]>;
   loadParents(): Promise<Parent[]>;
+  loadOperators(): Promise<Operator[]>;
   loadChildren(): Promise<Child[]>;
   addChild(child: Child): Promise<void>;
 }

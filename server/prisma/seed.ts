@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 
-import { buses, children, parents, routes, schools, subscriptions } from '../src/domain/seed';
+import { buses, children, operators, parents, routes, schools, subscriptions } from '../src/domain/seed';
 
 const prisma = new PrismaClient();
 
@@ -64,6 +64,15 @@ async function main(): Promise<void> {
       where: { id: parent.id },
       update: data,
       create: { id: parent.id, ...data },
+    });
+  }
+
+  for (const op of operators) {
+    const data = { name: op.name, phone: op.phone, schoolId: op.schoolId };
+    await prisma.operator.upsert({
+      where: { id: op.id },
+      update: data,
+      create: { id: op.id, ...data },
     });
   }
 

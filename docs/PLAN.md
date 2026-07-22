@@ -151,14 +151,28 @@ when the driver's phone is locked.
 - **Still open:** editing/removing a child, parent self-signup (today a phone
   must already exist as a parent), and school-scoped driver/operator roles.
 
-### Phase 4 — Billing + operator dashboard (next)
+### Phase 4a — Operator dashboard ✅ (this repo)
+- **Operator role:** a phone that matches an `Operator` → an operator token
+  scoped to that operator's school. Guarded `/admin/*` reject non-operators.
+- **Admin API:** `GET /admin/overview` (school, routes with bus/driver/child
+  counts, totals) and `GET /admin/positions` (live status per route), both
+  **scoped to the operator's school** — an operator never sees another school's
+  fleet.
+- **Dashboard:** a self-contained page served by the API at `/admin.html`
+  (`server/public/`) — operator OTP login, then a live monitor of the school's
+  routes/buses (status, current→next stop, progress, child counts), polling
+  `/admin/positions` every 2s. No separate build toolchain.
+- **Verified:** curl (overview/positions, school-scoping, parent → 403) and a
+  **headless-browser smoke test** of the login flow + live table render.
+- **Still open:** write actions (create/edit routes, stops, buses; assign
+  drivers/children), and a map view on the dashboard.
+
+### Phase 4b — Billing (next)
 - **Billing:** evaluate options given Lebanon's payment landscape — Apple/Google
   in-app purchase (simplest cross-border), a regional gateway (e.g. Areeba /
   local bank gateways), or school-collected fees with app-side entitlement.
   `SubscriptionsService.entitles()` (server) / `services/subscription.ts#entitles()`
   (app) is the single check to back with a verified receipt.
-- **Operator/admin web dashboard:** manage routes/stops/buses, assign drivers
-  and children, monitor all live buses, handle subscriptions.
 
 ### Phase 5 — Reliability & scale
 - Offline handling, GPS gap smoothing, driver "route ended" detection.

@@ -87,6 +87,18 @@ This is the default (`app.json → expo.extra.useBackend = false`).
 
 ---
 
+## 2i. Operator dashboard (web)
+
+- [ ] With the server running, open **`http://<LAN-IP>:3000/admin.html`** in a
+      browser.
+- [ ] Sign in with operator phone `+961 3 999 000` (prefilled) → code auto-fills
+      → **Verify**.
+- [ ] You see **Beirut International College**, totals (2 routes / 2 buses /
+      2 children), and a live table of Route A & B updating every 2s (status,
+      current→next stop, progress). _(Route C belongs to the other school and is
+      correctly not shown.)_
+- [ ] Optional: operator `+961 3 999 111` shows **Mount Lebanon School** (Route C).
+
 ## 3. Security spot-checks (optional, reassuring)
 
 - [ ] With the server running, `curl http://<IP>:3000/api/me/children` **without**
