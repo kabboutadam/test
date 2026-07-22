@@ -58,30 +58,35 @@ Demo tips:
 
 ```
 app/                      # Screens (expo-router)
-  _layout.tsx             #   root stack + providers
+  _layout.tsx             #   root stack + providers + auth gate
+  login.tsx               #   phone/OTP login (backend mode)
   (tabs)/index.tsx        #   home: list of children
   (tabs)/account.tsx      #   profile, subscription, demo controls
   track/[childId].tsx     #   live tracking detail
+  driver/index.tsx        #   driver mode: stream GPS to backend
   paywall.tsx             #   subscription plans
 src/
   models/types.ts         # domain model (transport-agnostic)
   data/mockData.ts        # Beirut routes, buses, family, subscription seed
+  api/                    # config, REST client, auth, position source, driver client
   services/
-    busSimulator.ts       # the ONLY source of fake positions
+    busSimulator.ts       # local position source (simulator mode)
     stopsAway.ts          # BusPosition -> "N stops away" + ETA
     subscription.ts       # entitlement + mock plans
     geo.ts                # lat/lng helpers
-  store/AppContext.tsx    # global state; wires simulator -> React
+  store/AppContext.tsx    # global state; simulator or live backend
+  store/AuthContext.tsx   # JWT + phone-OTP flow (secure storage)
   components/             # ChildCard, StopsAwayBadge, RouteProgress, BusMap
   theme/theme.ts          # colors, spacing, radii
+server/                   # NestJS API (see server/README.md)
 docs/PLAN.md              # architecture & phased roadmap
 ```
 
-## Backend + driver (Phase 2)
+## Backend + driver + auth (Phase 2–3)
 
-There is now a real NestJS API in [`server/`](server/) and a **driver mode** in
-the app, so live positions can come from an actual driver instead of the
-simulator.
+There is a real NestJS API in [`server/`](server/), a **driver mode** in the app,
+**phone-OTP login**, and an optional **Postgres** database — so live positions
+can come from an actual driver and each parent sees only their own children.
 
 ```
 Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route──▶  Socket.IO
@@ -90,26 +95,32 @@ Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route�
                                           Parent app  ◀──position events─┘
 ```
 
-- **Server:** `routes/children/subscriptions` over REST, live `BusPosition` over
-  Socket.IO. Raw driver GPS is snapped onto the route polyline to compute
-  "stops away". Routes with no live driver are advanced by a server-side
-  simulator. See [`server/README.md`](server/README.md).
+- **Server:** REST for routes/plans, **phone-OTP auth** (JWT), guarded `/me/*`
+  parent data, and live `BusPosition` over Socket.IO. Raw driver GPS is snapped
+  onto the route polyline to compute "stops away". Routes with no live driver are
+  advanced by a server-side simulator. Data is in-memory by default or **Postgres
+  via Prisma** (`USE_PRISMA=true`). See [`server/README.md`](server/README.md).
 - **Driver mode:** Account → **Driver mode**. Pick a route, then stream
   "Simulate route" (synthetic GPS, great for demos) or "Device GPS".
 - **Parent app source:** controlled by `app.json → expo.extra.useBackend`.
-  `false` (default) uses the built-in simulator so the app runs standalone;
-  `true` connects to the server. Set `apiBaseUrl` to your machine's LAN IP when
-  testing on a phone.
+  `false` (default) uses the built-in simulator and mock data so the app runs
+  standalone with no login. `true` connects to the server: the app shows a
+  **phone/OTP login**, then loads the signed-in parent's children and
+  subscription live. Set `apiBaseUrl` to your machine's LAN IP on a phone.
 
 ### Run the full stack
 
 ```bash
-# 1) backend
-cd server && npm install && npm run dev      # http://localhost:3000/api
+# 1) backend (in-memory, no DB)
+cd server && npm install && cp .env.example .env && npm run dev
 
 # 2) app — set expo.extra.useBackend = true (and apiBaseUrl) in app.json, then
 npx expo start
 ```
+
+Log in with the seed parent's phone **+961 3 555 777** — in dev the server
+returns the OTP and the login screen prefills it. Postgres is optional; see
+[`server/README.md`](server/README.md) for the docker-compose + Prisma steps.
 
 ## The one seam that matters
 

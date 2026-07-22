@@ -1,35 +1,79 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { config } from '@/api/config';
 import { AppProvider } from '@/store/AppContext';
+import { AuthProvider, useAuth } from '@/store/AuthContext';
 import { colors } from '@/theme/theme';
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppProvider>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: colors.primary },
-            headerTintColor: colors.onPrimary,
-            headerTitleStyle: { fontWeight: '700' },
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="track/[childId]"
-            options={{ title: 'Live tracking', presentation: 'card' }}
-          />
-          <Stack.Screen
-            name="paywall"
-            options={{ title: 'Subscription', presentation: 'modal' }}
-          />
-        </Stack>
-      </AppProvider>
+      <AuthProvider>
+        <AuthGate>
+          <AppProvider>
+            <StatusBar style="light" />
+            <RootStack />
+          </AppProvider>
+        </AuthGate>
+      </AuthProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/**
+ * In backend mode, force the login screen until there's a token. In simulator
+ * mode this is a pass-through (no login needed).
+ */
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { token, ready } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (!config.useBackend || !ready) return;
+    const onLogin = segments[0] === 'login';
+    if (!token && !onLogin) router.replace('/login');
+    else if (token && onLogin) router.replace('/');
+  }, [token, ready, segments, router]);
+
+  if (config.useBackend && !ready) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+  return <>{children}</>;
+}
+
+function RootStack() {
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.primary },
+        headerTintColor: colors.onPrimary,
+        headerTitleStyle: { fontWeight: '700' },
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="track/[childId]"
+        options={{ title: 'Live tracking', presentation: 'card' }}
+      />
+      <Stack.Screen
+        name="driver/index"
+        options={{ title: 'Driver mode' }}
+      />
+      <Stack.Screen
+        name="paywall"
+        options={{ title: 'Subscription', presentation: 'modal' }}
+      />
+    </Stack>
   );
 }

@@ -1,0 +1,18 @@
+# Local Postgres for BusMapp. Start with: docker compose up -d
+# Then: cp .env.example .env  (set USE_PRISMA=true)
+#       npm run prisma:migrate && npm run prisma:seed && npm run dev
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: busmapp
+      POSTGRES_PASSWORD: busmapp
+      POSTGRES_DB: busmapp
+    ports:
+      - '5432:5432'
+    volumes:
+      - busmapp_pgdata:/var/lib/postgresql/data
+
+volumes:
+  busmapp_pgdata:

@@ -86,18 +86,35 @@ segment.
 / `routeId`), a Postgres-backed data layer, and background-location streaming for
 when the driver's phone is locked.
 
-### Phase 3 — Accounts, auth, notifications
-- Auth: phone-number OTP (widely usable in Lebanon) via the auth provider.
+### Phase 3 — Accounts, auth, Postgres ✅ (this repo)
+- **Phone-OTP auth:** `POST /auth/otp/request` → `POST /auth/otp/verify` issues a
+  JWT (`@nestjs/jwt`, 30-day expiry). No SMS provider yet — the code is logged
+  and, outside production, returned in the response for testing. Swap
+  `AuthService.deliverOtp` for a real SMS gateway.
+- **Guarded parent data:** `JwtAuthGuard` + `@CurrentUser`; children and
+  subscription are served from `/me/*` and derived from the token, not a
+  client-supplied id.
+- **Postgres via Prisma:** full schema (`server/prisma/schema.prisma`), a
+  repository abstraction with memory + Prisma implementations selected by
+  `USE_PRISMA`, a seed script, and docker-compose. Memory stays the zero-infra
+  default so the demo runs with no database; the fleet is cached in memory at
+  startup either way so the positions tick never waits on the DB.
+- **App:** phone/OTP login screen (backend mode only), secure token storage
+  (`expo-secure-store`), and the parent home/account now load children +
+  subscription from the live API; the paywall activates via `POST /me/subscription`.
+
+### Phase 3b — Notifications (next)
 - Push notifications with `expo-notifications`: configurable triggers
-  ("notify me at 2 stops away", "arriving", "missed pickup").
-- Link parents ↔ children ↔ stops during onboarding; support multiple schools.
+  ("notify me at 2 stops away", "arriving", "missed pickup"). The server already
+  computes stops-away per route, so triggers hang off the position stream.
+- Onboarding to link parents ↔ children ↔ stops; support multiple schools.
 
 ### Phase 4 — Billing + operator dashboard
 - **Billing:** evaluate options given Lebanon's payment landscape — Apple/Google
   in-app purchase (simplest cross-border), a regional gateway (e.g. Areeba /
   local bank gateways), or school-collected fees with app-side entitlement.
-  `services/subscription.ts#entitles()` is the single check to back with a
-  verified receipt.
+  `SubscriptionsService.entitles()` (server) / `services/subscription.ts#entitles()`
+  (app) is the single check to back with a verified receipt.
 - **Operator/admin web dashboard:** manage routes/stops/buses, assign drivers
   and children, monitor all live buses, handle subscriptions.
 

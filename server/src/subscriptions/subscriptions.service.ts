@@ -1,7 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
-import { subscriptions } from '../domain/seed';
 import { Subscription } from '../domain/types';
+import {
+  SUBSCRIPTION_REPOSITORY,
+  SubscriptionRepository,
+} from './subscriptions.repository';
 
 export interface Plan {
   id: 'monthly' | 'yearly';
@@ -22,13 +25,14 @@ export const PLANS: Plan[] = [
  */
 @Injectable()
 export class SubscriptionsService {
-  private readonly store = new Map<string, Subscription>(
-    subscriptions.map((s) => [s.parentId, s]),
-  );
+  constructor(
+    @Inject(SUBSCRIPTION_REPOSITORY)
+    private readonly repo: SubscriptionRepository,
+  ) {}
 
-  getForParent(parentId: string): Subscription {
+  async getForParent(parentId: string): Promise<Subscription> {
     return (
-      this.store.get(parentId) ?? {
+      (await this.repo.getForParent(parentId)) ?? {
         parentId,
         status: 'none',
         plan: null,
@@ -37,13 +41,13 @@ export class SubscriptionsService {
     );
   }
 
-  entitles(parentId: string): boolean {
-    const s = this.getForParent(parentId);
+  async entitles(parentId: string): Promise<boolean> {
+    const s = await this.getForParent(parentId);
     return s.status === 'active' || s.status === 'trial';
   }
 
   /** Simulate a successful purchase. Replace with verified-receipt handling. */
-  activate(parentId: string, planId: Plan['id']): Subscription {
+  async activate(parentId: string, planId: Plan['id']): Promise<Subscription> {
     const renews = new Date();
     renews.setMonth(renews.getMonth() + (planId === 'yearly' ? 12 : 1));
     const sub: Subscription = {
@@ -52,7 +56,7 @@ export class SubscriptionsService {
       plan: planId,
       renewsAt: renews.toISOString().slice(0, 10),
     };
-    this.store.set(parentId, sub);
+    await this.repo.save(sub);
     return sub;
   }
 }

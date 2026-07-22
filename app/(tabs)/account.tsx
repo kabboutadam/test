@@ -4,13 +4,16 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { config } from '@/api/config';
 import { entitles, statusLabel } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
+import { useAuth } from '@/store/AuthContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
 export default function AccountScreen() {
   const { parent, children, subscription, resetSimulation, positionMode } =
     useApp();
+  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   return (
@@ -85,6 +88,15 @@ export default function AccountScreen() {
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Pressable>
       </Link>
+
+      {config.useBackend && (
+        <Pressable style={styles.row} onPress={signOut}>
+          <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rowTitle, { color: colors.danger }]}>Sign out</Text>
+          </View>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
