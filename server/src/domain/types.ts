@@ -10,6 +10,12 @@ export interface LatLng {
   longitude: number;
 }
 
+export interface School {
+  id: string;
+  name: string;
+  location: LatLng;
+}
+
 export interface Stop {
   id: string;
   name: string;

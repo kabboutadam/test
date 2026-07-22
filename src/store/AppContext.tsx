@@ -41,8 +41,11 @@ interface AppState {
   /** 'backend' when reading live positions from the API, else 'simulator'. */
   positionMode: 'backend' | 'simulator';
   subscribe: (planId: Plan['id']) => void;
+  addChild: (input: api.NewChild) => Promise<void>;
   resetSimulation: () => void;
 }
+
+const CHILD_COLORS = ['#0B6E4F', '#C1440E', '#2A6F97', '#8E44AD', '#B7791F'];
 
 const AppContext = createContext<AppState | null>(null);
 
@@ -115,6 +118,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setSubscription(await api.activateSubscription(token, planId));
         } else {
           setSubscription(activatePlan(planId));
+        }
+      },
+      addChild: async (input: api.NewChild) => {
+        if (config.useBackend && token) {
+          const created = await api.createChild(token, input);
+          setChildList((prev) => [...prev, created]);
+        } else {
+          setChildList((prev) => [
+            ...prev,
+            {
+              id: `child_local_${Date.now()}`,
+              color: CHILD_COLORS[prev.length % CHILD_COLORS.length],
+              parentId: parent.id,
+              ...input,
+            },
+          ]);
         }
       },
       resetSimulation: () => sourceRef.current?.reset(),

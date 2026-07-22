@@ -12,6 +12,15 @@ export const school: School = {
   location: { latitude: 33.8886, longitude: 35.4955 },
 };
 
+export const schools: School[] = [
+  school,
+  {
+    id: 'sch_2',
+    name: 'Mount Lebanon School',
+    location: { latitude: 33.9808, longitude: 35.6178 },
+  },
+];
+
 /**
  * Route A — Achrafieh / Downtown morning pickup, ending at the school.
  * Stops are ordered in pickup sequence.
@@ -139,7 +148,21 @@ export const routeB: Route = {
   ],
 };
 
-export const routes: Route[] = [routeA, routeB];
+/** Route C — Jounieh morning pickup for Mount Lebanon School (sch_2). */
+export const routeC: Route = {
+  id: 'route_c',
+  name: 'Route C — Jounieh Morning',
+  schoolId: 'sch_2',
+  stops: [
+    { id: 'c0', name: 'Jounieh, Old Souk', order: 0, location: { latitude: 33.9808, longitude: 35.6178 }, travelMinutesFromPrev: 0, scheduledTime: '06:45' },
+    { id: 'c1', name: 'Kaslik', order: 1, location: { latitude: 33.9736, longitude: 35.6144 }, travelMinutesFromPrev: 5, scheduledTime: '06:50' },
+    { id: 'c2', name: 'Zouk Mikael', order: 2, location: { latitude: 33.9631, longitude: 35.6089 }, travelMinutesFromPrev: 6, scheduledTime: '06:56' },
+    { id: 'c3', name: 'Adonis', order: 3, location: { latitude: 33.9556, longitude: 35.6208 }, travelMinutesFromPrev: 5, scheduledTime: '07:01' },
+    { id: 'c4', name: 'Mount Lebanon School', order: 4, location: { latitude: 33.9808, longitude: 35.6178 }, travelMinutesFromPrev: 8, scheduledTime: '07:09' },
+  ],
+};
+
+export const routes: Route[] = [routeA, routeB, routeC];
 
 export const buses: Bus[] = [
   {
@@ -157,6 +180,14 @@ export const buses: Bus[] = [
     driverName: 'Rami Haddad',
     driverPhone: '+961 3 000 222',
     capacity: 24,
+  },
+  {
+    id: 'bus_c',
+    plateNumber: 'B 789012',
+    routeId: 'route_c',
+    driverName: 'Georges Nassar',
+    driverPhone: '+961 3 000 333',
+    capacity: 20,
   },
 ];
 

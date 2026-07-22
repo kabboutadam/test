@@ -5,23 +5,19 @@
 
 import { PrismaClient } from '@prisma/client';
 
-import { buses, children, parents, routes, subscriptions } from '../src/domain/seed';
+import { buses, children, parents, routes, schools, subscriptions } from '../src/domain/seed';
 
 const prisma = new PrismaClient();
 
-const school = {
-  id: 'sch_1',
-  name: 'Beirut International College',
-  lat: 33.8886,
-  lng: 35.4955,
-};
-
 async function main(): Promise<void> {
-  await prisma.school.upsert({
-    where: { id: school.id },
-    update: { name: school.name, lat: school.lat, lng: school.lng },
-    create: school,
-  });
+  for (const school of schools) {
+    const data = { name: school.name, lat: school.location.latitude, lng: school.location.longitude };
+    await prisma.school.upsert({
+      where: { id: school.id },
+      update: data,
+      create: { id: school.id, ...data },
+    });
+  }
 
   for (const route of routes) {
     await prisma.route.upsert({

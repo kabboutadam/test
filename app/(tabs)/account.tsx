@@ -67,6 +67,14 @@ export default function AccountScreen() {
           </View>
         </View>
       ))}
+      <Link href="/add-child" asChild>
+        <Pressable style={styles.row}>
+          <Ionicons name="add-circle" size={20} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rowTitle, { color: colors.primary }]}>Add child</Text>
+          </View>
+        </Pressable>
+      </Link>
 
       <Text style={styles.sectionTitle}>Notifications</Text>
       <View style={styles.row}>

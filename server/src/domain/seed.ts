@@ -4,7 +4,12 @@
  * services depend only on the shapes, not on where they come from.
  */
 
-import { Bus, Child, Parent, Route, Subscription } from './types';
+import { Bus, Child, Parent, Route, School, Subscription } from './types';
+
+export const schools: School[] = [
+  { id: 'sch_1', name: 'Beirut International College', location: { latitude: 33.8886, longitude: 35.4955 } },
+  { id: 'sch_2', name: 'Mount Lebanon School', location: { latitude: 33.9808, longitude: 35.6178 } },
+];
 
 export const routes: Route[] = [
   {
@@ -34,11 +39,24 @@ export const routes: Route[] = [
       { id: 'b5', name: 'Beirut International College (School)', order: 5, location: { latitude: 33.8886, longitude: 35.4955 }, travelMinutesFromPrev: 7, scheduledTime: '07:26' },
     ],
   },
+  {
+    id: 'route_c',
+    name: 'Route C — Jounieh Morning',
+    schoolId: 'sch_2',
+    stops: [
+      { id: 'c0', name: 'Jounieh, Old Souk', order: 0, location: { latitude: 33.9808, longitude: 35.6178 }, travelMinutesFromPrev: 0, scheduledTime: '06:45' },
+      { id: 'c1', name: 'Kaslik', order: 1, location: { latitude: 33.9736, longitude: 35.6144 }, travelMinutesFromPrev: 5, scheduledTime: '06:50' },
+      { id: 'c2', name: 'Zouk Mikael', order: 2, location: { latitude: 33.9631, longitude: 35.6089 }, travelMinutesFromPrev: 6, scheduledTime: '06:56' },
+      { id: 'c3', name: 'Adonis', order: 3, location: { latitude: 33.9556, longitude: 35.6208 }, travelMinutesFromPrev: 5, scheduledTime: '07:01' },
+      { id: 'c4', name: 'Mount Lebanon School', order: 4, location: { latitude: 33.9808, longitude: 35.6178 }, travelMinutesFromPrev: 8, scheduledTime: '07:09' },
+    ],
+  },
 ];
 
 export const buses: Bus[] = [
   { id: 'bus_a', plateNumber: 'B 123456', routeId: 'route_a', driverName: 'Elie Karam', driverPhone: '+961 3 000 111', capacity: 24 },
   { id: 'bus_b', plateNumber: 'B 654321', routeId: 'route_b', driverName: 'Rami Haddad', driverPhone: '+961 3 000 222', capacity: 24 },
+  { id: 'bus_c', plateNumber: 'B 789012', routeId: 'route_c', driverName: 'Georges Nassar', driverPhone: '+961 3 000 333', capacity: 20 },
 ];
 
 export const parents: Parent[] = [

@@ -20,6 +20,8 @@ Public:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
+| GET  | `/api/schools` | All schools |
+| GET  | `/api/schools/:id/routes` | Routes at a school (onboarding) |
 | GET  | `/api/routes` | All routes with stops |
 | GET  | `/api/routes/:id` | One route |
 | GET  | `/api/buses` | All buses |
@@ -41,6 +43,7 @@ Guarded — require `Authorization: Bearer <token>`, scoped to the token's paren
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET  | `/api/me/children` | The parent's children |
+| POST | `/api/me/children` | Add a child (onboarding) |
 | GET  | `/api/me/subscription` | Current subscription |
 | POST | `/api/me/subscription` | Activate a plan (mock) |
 | POST | `/api/me/push-token` | Register this device's Expo push token |

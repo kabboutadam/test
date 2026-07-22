@@ -74,6 +74,10 @@ function RootStack() {
         options={{ title: 'Driver mode' }}
       />
       <Stack.Screen
+        name="add-child"
+        options={{ title: 'Add child', presentation: 'modal' }}
+      />
+      <Stack.Screen
         name="paywall"
         options={{ title: 'Subscription', presentation: 'modal' }}
       />

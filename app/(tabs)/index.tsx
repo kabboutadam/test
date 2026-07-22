@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChildCard } from '@/components/ChildCard';
@@ -50,6 +50,20 @@ export default function HomeScreen() {
           </View>
         );
       })}
+
+      {children.length === 0 && (
+        <View style={styles.empty}>
+          <Ionicons name="bus-outline" size={40} color={colors.textMuted} />
+          <Text style={styles.emptyText}>No children yet. Add your first to start tracking.</Text>
+        </View>
+      )}
+
+      <Link href="/add-child" asChild>
+        <Pressable style={styles.addButton}>
+          <Ionicons name="add" size={20} color={colors.primary} />
+          <Text style={styles.addButtonText}>Add child</Text>
+        </Pressable>
+      </Link>
     </ScrollView>
   );
 }
@@ -121,5 +135,28 @@ const styles = StyleSheet.create({
   },
   cardWrap: {
     marginBottom: spacing.sm,
+  },
+  empty: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  addButtonText: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

@@ -138,10 +138,20 @@ when the driver's phone is locked.
 - **Still open:** rate-limiting/abuse controls on `driver:gps`, and rotating the
   `JWT_SECRET` / short-lived tokens with refresh.
 
-### Phase 3c — Onboarding & multi-school (next)
-- Onboarding to link parents ↔ children ↔ stops; support multiple schools.
+### Phase 3c — Onboarding & multi-school ✅ (this repo)
+- **Multi-school:** the data model already had `School`/`Route.schoolId`; added a
+  second school (Mount Lebanon School) with its own route, `GET /schools` and
+  `GET /schools/:id/routes`, and `FleetService.getSchools/getRoutesForSchool`.
+- **Add-child onboarding:** guarded `POST /me/children` (validates the stop
+  belongs to the route) writes through the repository (`FleetRepository.addChild`
+  — memory + Prisma) and updates the cache. The app has an add-child flow
+  (school → route → stop → name/grade), reached from Account or the Home
+  empty-state; `AppContext.addChild` posts in backend mode or appends locally in
+  simulator mode.
+- **Still open:** editing/removing a child, parent self-signup (today a phone
+  must already exist as a parent), and school-scoped driver/operator roles.
 
-### Phase 4 — Billing + operator dashboard
+### Phase 4 — Billing + operator dashboard (next)
 - **Billing:** evaluate options given Lebanon's payment landscape — Apple/Google
   in-app purchase (simplest cross-border), a regional gateway (e.g. Areeba /
   local bank gateways), or school-collected fees with app-side entitlement.

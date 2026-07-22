@@ -1,11 +1,20 @@
 import type { PrismaClient } from '@prisma/client';
 
-import { Bus, Child, Parent, Route } from '../domain/types';
+import { Bus, Child, Parent, Route, School } from '../domain/types';
 import { FleetRepository } from './fleet.repository';
 
 /** Postgres-backed fleet data via Prisma. Maps DB rows to the domain shapes. */
 export class PrismaFleetRepository implements FleetRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async loadSchools(): Promise<School[]> {
+    const rows = await this.prisma.school.findMany();
+    return rows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      location: { latitude: s.lat, longitude: s.lng },
+    }));
+  }
 
   async loadRoutes(): Promise<Route[]> {
     const rows = await this.prisma.route.findMany({
@@ -62,5 +71,19 @@ export class PrismaFleetRepository implements FleetRepository {
       stopId: c.stopId,
       color: c.color,
     }));
+  }
+
+  async addChild(child: Child): Promise<void> {
+    await this.prisma.child.create({
+      data: {
+        id: child.id,
+        name: child.name,
+        grade: child.grade,
+        color: child.color,
+        parentId: child.parentId,
+        routeId: child.routeId,
+        stopId: child.stopId,
+      },
+    });
   }
 }

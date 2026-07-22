@@ -5,7 +5,7 @@
  */
 
 import { apiUrl } from '@/api/config';
-import { Child, Route, Subscription } from '@/models/types';
+import { Child, Route, School, Subscription } from '@/models/types';
 
 export class ApiError extends Error {
   constructor(
@@ -60,6 +60,17 @@ export function fetchChildren(token: string): Promise<Child[]> {
   return request('/me/children', { token });
 }
 
+export interface NewChild {
+  name: string;
+  grade: string;
+  routeId: string;
+  stopId: string;
+}
+
+export function createChild(token: string, child: NewChild): Promise<Child> {
+  return request('/me/children', { method: 'POST', body: child, token });
+}
+
 export function fetchSubscription(token: string): Promise<Subscription> {
   return request('/me/subscription', { token });
 }
@@ -82,4 +93,12 @@ export function registerPushToken(
 
 export function fetchRoutes(): Promise<Route[]> {
   return request('/routes');
+}
+
+export function fetchSchools(): Promise<School[]> {
+  return request('/schools');
+}
+
+export function fetchRoutesForSchool(schoolId: string): Promise<Route[]> {
+  return request(`/schools/${schoolId}/routes`);
 }

@@ -4,6 +4,7 @@ import { FleetController } from './fleet.controller';
 import { FLEET_REPOSITORY, FleetRepository } from './fleet.repository';
 import { FleetService } from './fleet.service';
 import { MemoryFleetRepository } from './memory-fleet.repository';
+import { SchoolsController } from './schools.controller';
 
 /**
  * Selects the fleet data source. USE_PRISMA=true loads the Postgres repository
@@ -25,7 +26,7 @@ const fleetRepositoryProvider: Provider = {
 };
 
 @Module({
-  controllers: [FleetController],
+  controllers: [FleetController, SchoolsController],
   providers: [FleetService, fleetRepositoryProvider],
   exports: [FleetService],
 })

@@ -1,7 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 
 import { normalizePhone } from '../domain/phone';
-import { Bus, Child, Parent, Route } from '../domain/types';
+import { Bus, Child, Parent, Route, School } from '../domain/types';
 import { FLEET_REPOSITORY, FleetRepository } from './fleet.repository';
 
 /**
@@ -11,6 +11,7 @@ import { FLEET_REPOSITORY, FleetRepository } from './fleet.repository';
  */
 @Injectable()
 export class FleetService implements OnModuleInit {
+  private schoolsCache: School[] = [];
   private routesCache: Route[] = [];
   private busesCache: Bus[] = [];
   private parentsCache: Parent[] = [];
@@ -21,16 +22,28 @@ export class FleetService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const [routes, buses, parents, children] = await Promise.all([
+    const [schools, routes, buses, parents, children] = await Promise.all([
+      this.repo.loadSchools(),
       this.repo.loadRoutes(),
       this.repo.loadBuses(),
       this.repo.loadParents(),
       this.repo.loadChildren(),
     ]);
+    this.schoolsCache = schools;
     this.routesCache = routes;
     this.busesCache = buses;
-    this.parentsCache = parents;
-    this.childrenCache = children;
+    // Copy the mutable collections so writes update only our cache, never a
+    // repository's internal array (the memory repo returns its store by ref).
+    this.parentsCache = parents.map((p) => ({ ...p, childIds: [...p.childIds] }));
+    this.childrenCache = [...children];
+  }
+
+  getSchools(): School[] {
+    return this.schoolsCache;
+  }
+
+  getRoutesForSchool(schoolId: string): Route[] {
+    return this.routesCache.filter((r) => r.schoolId === schoolId);
   }
 
   getRoutes(): Route[] {
@@ -73,5 +86,16 @@ export class FleetService implements OnModuleInit {
 
   getChild(id: string): Child | undefined {
     return this.childrenCache.find((c) => c.id === id);
+  }
+
+  /** Onboard a child: persist it and update the in-memory cache. */
+  async addChild(child: Child): Promise<Child> {
+    await this.repo.addChild(child);
+    this.childrenCache.push(child);
+    const parent = this.parentsCache.find((p) => p.id === child.parentId);
+    if (parent && !parent.childIds.includes(child.id)) {
+      parent.childIds.push(child.id);
+    }
+    return child;
   }
 }

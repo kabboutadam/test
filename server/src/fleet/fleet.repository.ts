@@ -1,4 +1,4 @@
-import { Bus, Child, Parent, Route } from '../domain/types';
+import { Bus, Child, Parent, Route, School } from '../domain/types';
 
 /** DI token for the fleet data source (memory or Prisma). */
 export const FLEET_REPOSITORY = 'FLEET_REPOSITORY';
@@ -6,10 +6,13 @@ export const FLEET_REPOSITORY = 'FLEET_REPOSITORY';
 /**
  * Loads fleet reference data. FleetService reads everything once at startup and
  * caches it in memory, so hot paths (the positions tick) never hit the DB.
+ * Writes (onboarding a child) go straight to the store and update the cache.
  */
 export interface FleetRepository {
+  loadSchools(): Promise<School[]>;
   loadRoutes(): Promise<Route[]>;
   loadBuses(): Promise<Bus[]>;
   loadParents(): Promise<Parent[]>;
   loadChildren(): Promise<Child[]>;
+  addChild(child: Child): Promise<void>;
 }

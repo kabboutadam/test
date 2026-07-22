@@ -111,6 +111,12 @@ Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route�
 - **Secured realtime:** the Socket.IO channel is authenticated — parents see only
   their own children's routes and drivers can only report their own bus, so
   nobody can track arbitrary children or spoof a bus.
+- **Onboarding & multi-school:** two schools (Beirut & Mount Lebanon) with their
+  own routes. Parents add a child via a school → route → stop flow
+  (`POST /me/children`, or a local add in simulator mode).
+
+**Validating on a real device:** follow [`docs/SMOKE_TEST.md`](docs/SMOKE_TEST.md)
+— a step-by-step checklist for both simulator and backend modes.
 - **Parent app source:** controlled by `app.json → expo.extra.useBackend`.
   `false` (default) uses the built-in simulator and mock data so the app runs
   standalone with no login. `true` connects to the server: the app shows a
