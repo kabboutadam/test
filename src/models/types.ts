@@ -81,6 +81,9 @@ export type BusStatus =
   | 'at_stop'
   | 'completed';
 
+/** Where a position came from — a real driver stream or the simulator. */
+export type PositionSourceKind = 'driver' | 'simulator';
+
 /**
  * A live snapshot of where a bus is. This is the single object the tracking
  * UI consumes, whether it was produced by the simulator or real telemetry.
@@ -96,4 +99,6 @@ export interface BusPosition {
   progressToNext: number;
   speedKmh: number;
   updatedAt: number;
+  /** Present on positions from the backend; omitted by the local simulator. */
+  source?: PositionSourceKind;
 }

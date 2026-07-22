@@ -122,9 +122,12 @@ export class BusSimulator {
     else if (s.dwellRemaining > 0) status = 'at_stop';
     else status = 'en_route';
 
+    // Realistic speed from the schedule (distance / nominal minutes), not the
+    // time-accelerated sim clock — otherwise the demo shows absurd km/h.
     const segKm = distanceKm(from.location, to.location);
+    const nominalMin = to.travelMinutesFromPrev || 5;
     const speedKmh =
-      status === 'en_route' ? Math.round((segKm / SEGMENT_SECONDS) * 3600) : 0;
+      status === 'en_route' ? Math.round(segKm / (nominalMin / 60)) : 0;
 
     return {
       busId: s.route.id,

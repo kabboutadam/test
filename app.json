@@ -30,9 +30,21 @@
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "BusMapp uses your location to share the bus position with parents while you drive the route."
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "useBackend": false,
+      "apiBaseUrl": "http://localhost:3000"
     }
   }
 }

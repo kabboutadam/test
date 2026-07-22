@@ -20,6 +20,8 @@ import {
   parent,
   routes,
 } from '@/data/mockData';
+import { config } from '@/api/config';
+import { BackendPositionSource, PositionSource } from '@/api/positionSource';
 import { Bus, BusPosition, Child, Parent, Subscription } from '@/models/types';
 import { BusSimulator } from '@/services/busSimulator';
 import { activate as activatePlan, Plan } from '@/services/subscription';
@@ -30,6 +32,8 @@ interface AppState {
   buses: Bus[];
   positions: Record<string, BusPosition>;
   subscription: Subscription;
+  /** 'backend' when reading live positions from the API, else 'simulator'. */
+  positionMode: 'backend' | 'simulator';
   subscribe: (planId: Plan['id']) => void;
   resetSimulation: () => void;
 }
@@ -37,22 +41,26 @@ interface AppState {
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const simulatorRef = useRef<BusSimulator | null>(null);
+  const sourceRef = useRef<PositionSource | null>(null);
   const [positions, setPositions] = useState<Record<string, BusPosition>>({});
   const [subscription, setSubscription] =
     useState<Subscription>(initialSubscription);
 
-  if (simulatorRef.current == null) {
-    simulatorRef.current = new BusSimulator(routes);
+  // Pick the position source once. BusSimulator satisfies PositionSource
+  // structurally, so both branches expose the same start/stop/subscribe/reset.
+  if (sourceRef.current == null) {
+    sourceRef.current = config.useBackend
+      ? new BackendPositionSource(routes.map((r) => r.id))
+      : new BusSimulator(routes);
   }
 
   useEffect(() => {
-    const sim = simulatorRef.current!;
-    const unsubscribe = sim.subscribe(setPositions);
-    sim.start();
+    const source = sourceRef.current!;
+    const unsubscribe = source.subscribe(setPositions);
+    source.start();
     return () => {
       unsubscribe();
-      sim.stop();
+      source.stop();
     };
   }, []);
 
@@ -63,8 +71,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       buses,
       positions,
       subscription,
+      positionMode: config.useBackend ? 'backend' : 'simulator',
       subscribe: (planId: Plan['id']) => setSubscription(activatePlan(planId)),
-      resetSimulation: () => simulatorRef.current?.reset(),
+      resetSimulation: () => sourceRef.current?.reset(),
     }),
     [positions, subscription],
   );

@@ -9,7 +9,8 @@ import { useApp } from '@/store/AppContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
 export default function AccountScreen() {
-  const { parent, children, subscription, resetSimulation } = useApp();
+  const { parent, children, subscription, resetSimulation, positionMode } =
+    useApp();
   const insets = useSafeAreaInsets();
 
   return (
@@ -66,9 +67,24 @@ export default function AccountScreen() {
         <Ionicons name="refresh" size={20} color={colors.primary} />
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>Restart bus simulation</Text>
-          <Text style={styles.rowSub}>Send both buses back to their first stop</Text>
+          <Text style={styles.rowSub}>
+            {positionMode === 'backend'
+              ? 'Positions come from the backend (server owns the sim)'
+              : 'Send both buses back to their first stop'}
+          </Text>
         </View>
       </Pressable>
+
+      <Link href="/driver" asChild>
+        <Pressable style={styles.row}>
+          <Ionicons name="bus" size={20} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Driver mode</Text>
+            <Text style={styles.rowSub}>Stream this bus’s location to parents</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
+      </Link>
     </ScrollView>
   );
 }

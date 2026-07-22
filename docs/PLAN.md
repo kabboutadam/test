@@ -59,16 +59,32 @@ segment.
 - ⬜ Real road-following route polylines instead of straight segments between
   stops (Directions API or offline routing).
 
-### Phase 2 — Backend + real GPS
-- **Backend:** a small API (suggested: Node/NestJS or Supabase) owning
-  `schools, routes, stops, buses, drivers, children, parents, subscriptions`.
-- **Driver app:** a minimal Expo app that, when a driver starts a route,
-  streams GPS (`expo-location` background updates) to the backend.
-- **Realtime transport:** WebSocket (or Supabase Realtime / Firebase) pushing
-  `BusPosition` to subscribed parents. Replace `BusSimulator.subscribe()` with a
-  socket subscription that emits the identical object.
-- Server-side "stops away" computation using map-matching so the number reflects
-  the actual road position, not a straight-line interpolation.
+### Phase 2 — Backend + real GPS ✅ (this repo)
+- **Backend (`server/`):** a NestJS API owning routes/buses/children/parents/
+  subscriptions (in-memory, seeded from the same Beirut data; swap for
+  Postgres/Prisma behind the same service methods).
+- **Realtime:** a Socket.IO gateway. Parents `subscribe {routeId}` and receive
+  `position` events; the `PositionsService` fans updates to each route's room.
+- **Driver ingest:** drivers emit `driver:gps {routeId, location, speedKmh}`
+  (socket) or `POST /positions/:routeId/gps` (REST). The server **snaps** the raw
+  point onto the route polyline (`projectOntoRoute`) to derive
+  `currentStopIndex` + `progressToNext` — the real "stops away" math. Readings
+  >1.5 km off-route are rejected.
+- **Simulator fallback:** routes without a live driver are advanced by a
+  server-side simulator, so there are always moving buses. A driver stream takes
+  over automatically and hands back when it goes stale (10 s).
+- **Driver app:** driver mode in the Expo app (`app/driver/`) with a route
+  picker and two sources — "Simulate route" (synthetic GPS for demos) and
+  "Device GPS" (`expo-location`).
+- **Parent app seam:** `PositionSource` abstraction — `BackendPositionSource`
+  (Socket.IO) or the local `BusSimulator`, chosen by `expo.extra.useBackend`.
+  The UI is identical either way.
+- **Verified:** an end-to-end socket test confirmed a driver GPS point is
+  snapped onto the route and rebroadcast to a subscribed parent.
+
+**Still open in this phase:** real auth (endpoints currently trust a `parentId`
+/ `routeId`), a Postgres-backed data layer, and background-location streaming for
+when the driver's phone is locked.
 
 ### Phase 3 — Accounts, auth, notifications
 - Auth: phone-number OTP (widely usable in Lebanon) via the auth provider.

@@ -77,9 +77,44 @@ src/
 docs/PLAN.md              # architecture & phased roadmap
 ```
 
+## Backend + driver (Phase 2)
+
+There is now a real NestJS API in [`server/`](server/) and a **driver mode** in
+the app, so live positions can come from an actual driver instead of the
+simulator.
+
+```
+Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route──▶  Socket.IO
+(expo-location)                   (PositionsService)                 room per route
+                                                                        │
+                                          Parent app  ◀──position events─┘
+```
+
+- **Server:** `routes/children/subscriptions` over REST, live `BusPosition` over
+  Socket.IO. Raw driver GPS is snapped onto the route polyline to compute
+  "stops away". Routes with no live driver are advanced by a server-side
+  simulator. See [`server/README.md`](server/README.md).
+- **Driver mode:** Account → **Driver mode**. Pick a route, then stream
+  "Simulate route" (synthetic GPS, great for demos) or "Device GPS".
+- **Parent app source:** controlled by `app.json → expo.extra.useBackend`.
+  `false` (default) uses the built-in simulator so the app runs standalone;
+  `true` connects to the server. Set `apiBaseUrl` to your machine's LAN IP when
+  testing on a phone.
+
+### Run the full stack
+
+```bash
+# 1) backend
+cd server && npm install && npm run dev      # http://localhost:3000/api
+
+# 2) app — set expo.extra.useBackend = true (and apiBaseUrl) in app.json, then
+npx expo start
+```
+
 ## The one seam that matters
 
-Everything the UI shows flows from a single object, `BusPosition`. Today it is
-produced by `BusSimulator`. To go live, replace that one class with a real
-telemetry source (driver-phone GPS or hardware tracker) that emits the same
-object — no screen or component needs to change.
+Everything the UI shows flows from a single object, `BusPosition`. It is produced
+by either the local `BusSimulator` or the backend (`BackendPositionSource` over
+Socket.IO), selected by one config flag. On the server, a driver's raw GPS and
+the fallback simulator both emit that same object — so no screen or component
+changes as real telemetry replaces simulation.
