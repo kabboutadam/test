@@ -14,12 +14,16 @@ npm run build && npm start
 
 Runs on in-memory seed data by default (no database needed).
 
+**Deploying?** The server is containerized (`Dockerfile`) with one-file configs
+for Render/Railway/Fly — see [`../docs/DEPLOY.md`](../docs/DEPLOY.md).
+
 ## REST
 
 Public:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
+| GET  | `/api/health` | Liveness probe (`{ ok: true }`) |
 | GET  | `/api/schools` | All schools |
 | GET  | `/api/schools/:id/routes` | Routes at a school (onboarding) |
 | GET  | `/api/routes` | All routes with stops |

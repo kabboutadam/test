@@ -197,6 +197,15 @@ cross-border), a regional gateway (e.g. Areeba / local bank gateways), or
 school-collected fees with app-side entitlement. `SubscriptionsService.entitles()`
 (server) / `services/subscription.ts#entitles()` (app) remains the single gate.
 
+### Distribution — server deploy ✅ (this repo)
+- The API is containerized (`server/Dockerfile` + `scripts/start.sh` which runs
+  `prisma db push` and optional seed) with a `/api/health` probe and one-file
+  deploy configs: `render.yaml` (web + Postgres), `server/railway.json`,
+  `server/fly.toml`. Runbook: `docs/DEPLOY.md`.
+- After deploy, point the app's `apiBaseUrl` at the public URL and rebuild for a
+  backend-mode TestFlight build. Wire a real SMS provider first so testers can
+  receive OTP codes.
+
 ### Distribution — TestFlight ready ✅ (this repo)
 - App icon + splash/adaptive/favicon assets, iOS `bundleIdentifier`/`buildNumber`,
   export-compliance flag, and `eas.json` build/submit profiles are configured.
