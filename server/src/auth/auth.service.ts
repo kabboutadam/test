@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -7,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 
 import { normalizePhone } from '../domain/phone';
 import { FleetService } from '../fleet/fleet.service';
+import { SMS_PROVIDER, SmsProvider } from './sms/sms-provider';
 
 interface OtpEntry {
   code: string;
@@ -31,7 +33,6 @@ export interface VerifyResult {
 }
 
 const OTP_TTL_MS = 5 * 60 * 1000;
-const isProd = process.env.NODE_ENV === 'production';
 
 /**
  * Phone-OTP auth. A user requests a code for their phone, then verifies it to
@@ -47,6 +48,7 @@ export class AuthService {
   constructor(
     private readonly fleet: FleetService,
     private readonly jwt: JwtService,
+    @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
   ) {}
 
   /** Generate + "send" an OTP. Returns the code only in non-production. */
@@ -64,8 +66,12 @@ export class AuthService {
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
     this.otps.set(normalized, { code, expiresAt: Date.now() + OTP_TTL_MS });
-    this.deliverOtp(normalized, code);
-    return isProd ? { sent: true } : { sent: true, devCode: code };
+    await this.deliverOtp(normalized, code);
+    // With a real SMS provider the code is delivered by text; only the console
+    // (no-SMS) provider echoes it back for local testing.
+    return this.sms.name === 'console'
+      ? { sent: true, devCode: code }
+      : { sent: true };
   }
 
   /** Verify an OTP and issue a role-scoped JWT. */
@@ -120,8 +126,11 @@ export class AuthService {
     }
   }
 
-  private deliverOtp(phone: string, code: string): void {
-    // TODO: send via SMS provider. For now, log it.
-    this.logger.log(`OTP for ${phone}: ${code}`);
+  private async deliverOtp(phone: string, code: string): Promise<void> {
+    try {
+      await this.sms.send(phone, `Your BusMapp verification code is ${code}`);
+    } catch (err) {
+      this.logger.error(`Failed to send OTP to ${phone}: ${String(err)}`);
+    }
   }
 }

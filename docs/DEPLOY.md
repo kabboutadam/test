@@ -13,6 +13,8 @@ and ships configs for **Render**, **Railway**, and **Fly.io** — pick one.
 | `USE_PRISMA` | `true` to use Postgres (recommended in prod), else in-memory. |
 | `DATABASE_URL` | Postgres connection string (when `USE_PRISMA=true`). |
 | `SEED_ON_START` | `true` to load the Beirut demo data on boot (idempotent). |
+| `SMS_PROVIDER` | `console` (default, logs code) or `twilio` (real texts). |
+| `TWILIO_*` | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` for Twilio. |
 
 On boot with `USE_PRISMA=true`, the container runs `prisma db push` to sync the
 schema, then seeds if `SEED_ON_START=true` (see `server/scripts/start.sh`).
@@ -82,8 +84,11 @@ Get the URL with `fly info` (e.g. `https://busmapp-api.fly.dev`).
    ```
    Then rebuild for TestFlight (`docs/TESTFLIGHT.md`). The app will show the
    phone-OTP login and stream live data.
-3. **SMS for OTP:** in production the OTP is not returned in the response, so
-   wire a real SMS provider (`AuthService.deliverOtp`) or testers can't log in.
+3. **SMS for OTP:** set `SMS_PROVIDER=twilio` + the `TWILIO_*` vars so testers
+   receive their code by text. With the default `console` provider no text is
+   sent (the code is only logged / returned in dev), so real testers can't log
+   in. To add a Lebanese aggregator instead, implement `SmsProvider` against
+   their HTTP API and select it in `createSmsProvider`.
 4. **Push delivery:** the host must allow outbound HTTPS to `exp.host` (most do
    by default). Remote push also needs the EAS `projectId` + a physical device.
 

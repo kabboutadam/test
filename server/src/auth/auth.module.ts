@@ -1,10 +1,16 @@
-import { Module } from '@nestjs/common';
+import { Module, Provider } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
 import { FleetModule } from '../fleet/fleet.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { createSmsProvider, SMS_PROVIDER } from './sms/sms-provider';
+
+const smsProvider: Provider = {
+  provide: SMS_PROVIDER,
+  useFactory: createSmsProvider,
+};
 
 @Module({
   imports: [
@@ -15,7 +21,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard],
+  providers: [AuthService, JwtAuthGuard, smsProvider],
   exports: [AuthService, JwtAuthGuard],
 })
 export class AuthModule {}

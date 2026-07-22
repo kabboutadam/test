@@ -80,14 +80,31 @@ Testers install the **TestFlight** app from the App Store, then open your invite
 
 ## 5. Shipping updates
 
-- **Native or config changes** (new native module, icon, permissions): bump is
-  automatic — `production` uses `autoIncrement`, so just rebuild + resubmit:
+**EAS Update is already wired** (`expo-updates` installed; `app.json` has
+`runtimeVersion` + `updates.url`; `eas.json` build profiles have channels
+`development`/`preview`/`production`). One-time, after `eas init`:
+
+```bash
+eas update:configure     # finalizes updates.url with your real projectId
+```
+
+- **JS-only changes** (most of this app — screens, logic, styles): push instantly
+  to installed TestFlight builds, no rebuild, no re-review:
+  ```bash
+  eas update --branch production --message "what changed"
+  ```
+  Builds made with the `production` profile are on the `production` channel and
+  pick up the matching branch on next launch.
+- **Native or config changes** (new native module, icon, permissions, or a bump
+  of the app `version` — which changes `runtimeVersion`): these need a new
+  build + submit:
   ```bash
   eas build -p ios --profile production && eas submit -p ios --latest
   ```
-- **JS-only changes** (most of this app): you can push instantly with EAS Update
-  instead of a new build — `eas update --branch production`. (Requires the
-  `expo-updates` module; add it when you want OTA updates.)
+
+> `runtimeVersion` uses the `appVersion` policy: an OTA update only lands on
+> builds whose app version matches. Bump `expo.version` only when you ship a new
+> native build, so updates and binaries stay compatible.
 
 ## Going live with the backend (later)
 

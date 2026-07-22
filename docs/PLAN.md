@@ -202,9 +202,12 @@ school-collected fees with app-side entitlement. `SubscriptionsService.entitles(
   `prisma db push` and optional seed) with a `/api/health` probe and one-file
   deploy configs: `render.yaml` (web + Postgres), `server/railway.json`,
   `server/fly.toml`. Runbook: `docs/DEPLOY.md`.
+- **SMS for OTP** is wired behind an `SmsProvider` abstraction: `console` (dev,
+  logs the code) by default, or `twilio` (real texts) via `SMS_PROVIDER=twilio` +
+  `TWILIO_*` env — so backend-mode testers can actually receive codes. A Lebanese
+  aggregator drops in by implementing the same interface.
 - After deploy, point the app's `apiBaseUrl` at the public URL and rebuild for a
-  backend-mode TestFlight build. Wire a real SMS provider first so testers can
-  receive OTP codes.
+  backend-mode TestFlight build.
 
 ### Distribution — TestFlight ready ✅ (this repo)
 - App icon + splash/adaptive/favicon assets, iOS `bundleIdentifier`/`buildNumber`,
@@ -212,8 +215,12 @@ school-collected fees with app-side entitlement. `SubscriptionsService.entitles(
 - First build ships in self-contained **simulator mode** so testers need no
   backend. Runbook: `docs/TESTFLIGHT.md`. The build/submit run on the user's
   machine (interactive Apple auth) — not automatable from the cloud sandbox.
+- **OTA updates:** `expo-updates` is configured (`runtimeVersion` +
+  `updates.url`, channels in `eas.json`), so JS-only changes ship with
+  `eas update --branch production` — no rebuild. Native/version changes still
+  need a new build.
 - **Before wider release:** an Apple Developer account, `eas init` to mint the
-  `projectId`, a real SMS provider (for backend-mode login), and a deployed
+  `projectId`, `SMS_PROVIDER=twilio` for backend-mode login, and a deployed
   server if shipping backend mode.
 
 ### Phase 5 — Reliability & scale

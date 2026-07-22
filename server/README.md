@@ -71,10 +71,11 @@ routes/buses and edit drivers.
 
 ## Auth
 
-Phone-OTP → JWT (`@nestjs/jwt`, 30-day expiry, `JWT_SECRET` from env). There is
-no SMS provider yet, so the code is logged and, when `NODE_ENV !== 'production'`,
-returned in the response for testing. Replace `AuthService.deliverOtp` with a
-real SMS gateway.
+Phone-OTP → JWT (`@nestjs/jwt`, 30-day expiry, `JWT_SECRET` from env). OTP
+delivery goes through an `SmsProvider` (`src/auth/sms/`): the default `console`
+provider logs the code and returns it in the response for local testing; set
+`SMS_PROVIDER=twilio` + `TWILIO_*` env to send real texts. Only the `console`
+provider echoes the code back — with a real provider it's texted, not returned.
 
 The **role is derived from the phone**: a parent phone → a `parent` token; a
 bus's `driverPhone` → a `driver` token scoped to that bus's route; an operator's
