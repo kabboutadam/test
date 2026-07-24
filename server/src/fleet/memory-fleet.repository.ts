@@ -34,6 +34,14 @@ export class MemoryFleetRepository implements FleetRepository {
   async addChild(child: Child): Promise<void> {
     this.childRows.push(child);
   }
+  async updateChild(child: Child): Promise<void> {
+    const i = this.childRows.findIndex((c) => c.id === child.id);
+    if (i >= 0) this.childRows[i] = child;
+  }
+  async removeChild(id: string): Promise<void> {
+    const i = this.childRows.findIndex((c) => c.id === id);
+    if (i >= 0) this.childRows.splice(i, 1);
+  }
   async addRoute(route: Route): Promise<void> {
     this.routeRows.push(route);
   }

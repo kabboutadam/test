@@ -59,13 +59,16 @@ export default function AccountScreen() {
 
       <Text style={styles.sectionTitle}>Children ({children.length})</Text>
       {children.map((c) => (
-        <View key={c.id} style={styles.row}>
-          <View style={[styles.dot, { backgroundColor: c.color }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{c.name}</Text>
-            <Text style={styles.rowSub}>{c.grade}</Text>
-          </View>
-        </View>
+        <Link key={c.id} href={{ pathname: '/add-child', params: { childId: c.id } }} asChild>
+          <Pressable style={styles.row}>
+            <View style={[styles.dot, { backgroundColor: c.color }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowTitle}>{c.name}</Text>
+              <Text style={styles.rowSub}>{c.grade}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
+        </Link>
       ))}
       <Link href="/add-child" asChild>
         <Pressable style={styles.row}>

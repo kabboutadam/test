@@ -42,6 +42,8 @@ interface AppState {
   positionMode: 'backend' | 'simulator';
   subscribe: (planId: Plan['id']) => void;
   addChild: (input: api.NewChild) => Promise<void>;
+  updateChild: (id: string, patch: api.ChildPatch) => Promise<void>;
+  removeChild: (id: string) => Promise<void>;
   resetSimulation: () => void;
 }
 
@@ -138,6 +140,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             },
           ]);
         }
+      },
+      updateChild: async (id: string, patch: api.ChildPatch) => {
+        if (config.useBackend && token) {
+          const updated = await api.updateChild(token, id, patch);
+          setChildList((prev) => prev.map((c) => (c.id === id ? updated : c)));
+        } else {
+          setChildList((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+          );
+        }
+      },
+      removeChild: async (id: string) => {
+        if (config.useBackend && token) await api.deleteChild(token, id);
+        setChildList((prev) => prev.filter((c) => c.id !== id));
       },
       resetSimulation: () => sourceRef.current?.reset(),
     }),

@@ -71,6 +71,21 @@ export function createChild(token: string, child: NewChild): Promise<Child> {
   return request('/me/children', { method: 'POST', body: child, token });
 }
 
+export interface ChildPatch {
+  name?: string;
+  grade?: string;
+  routeId?: string;
+  stopId?: string;
+}
+
+export function updateChild(token: string, id: string, patch: ChildPatch): Promise<Child> {
+  return request(`/me/children/${id}`, { method: 'PATCH', body: patch, token });
+}
+
+export function deleteChild(token: string, id: string): Promise<{ ok: boolean }> {
+  return request(`/me/children/${id}`, { method: 'DELETE', token });
+}
+
 export function fetchSubscription(token: string): Promise<Subscription> {
   return request('/me/subscription', { token });
 }

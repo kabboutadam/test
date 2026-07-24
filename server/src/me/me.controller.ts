@@ -2,7 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
+  ForbiddenException,
   Get,
+  NotFoundException,
+  Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -20,6 +25,13 @@ interface AddChildBody {
   routeId: string;
   stopId: string;
   color?: string;
+}
+
+interface UpdateChildBody {
+  name?: string;
+  grade?: string;
+  routeId?: string;
+  stopId?: string;
 }
 
 const CHILD_COLORS = ['#0B6E4F', '#C1440E', '#2A6F97', '#8E44AD', '#B7791F'];
@@ -64,6 +76,45 @@ export class MeController {
         CHILD_COLORS[this.fleet.getChildrenForParent(parentId).length % CHILD_COLORS.length],
     };
     return this.fleet.addChild(child);
+  }
+
+  @Patch('children/:id')
+  async updateChild(
+    @CurrentParent() parentId: string,
+    @Param('id') id: string,
+    @Body() body: UpdateChildBody,
+  ): Promise<Child> {
+    const child = this.fleet.getChild(id);
+    if (!child) throw new NotFoundException('child not found');
+    if (child.parentId !== parentId) throw new ForbiddenException('not your child');
+
+    const routeId = body.routeId ?? child.routeId;
+    const stopId = body.stopId ?? child.stopId;
+    const route = this.fleet.getRoute(routeId);
+    if (!route) throw new BadRequestException('unknown route');
+    if (!route.stops.some((s) => s.id === stopId)) {
+      throw new BadRequestException('stop does not belong to route');
+    }
+
+    return this.fleet.updateChild({
+      ...child,
+      name: body.name?.trim() || child.name,
+      grade: body.grade?.trim() || child.grade,
+      routeId,
+      stopId,
+    });
+  }
+
+  @Delete('children/:id')
+  async removeChild(
+    @CurrentParent() parentId: string,
+    @Param('id') id: string,
+  ): Promise<{ ok: boolean }> {
+    const child = this.fleet.getChild(id);
+    if (!child) throw new NotFoundException('child not found');
+    if (child.parentId !== parentId) throw new ForbiddenException('not your child');
+    await this.fleet.removeChild(id);
+    return { ok: true };
   }
 
   @Get('subscription')

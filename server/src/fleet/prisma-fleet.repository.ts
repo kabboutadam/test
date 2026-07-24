@@ -97,6 +97,23 @@ export class PrismaFleetRepository implements FleetRepository {
     });
   }
 
+  async updateChild(child: Child): Promise<void> {
+    await this.prisma.child.update({
+      where: { id: child.id },
+      data: {
+        name: child.name,
+        grade: child.grade,
+        color: child.color,
+        routeId: child.routeId,
+        stopId: child.stopId,
+      },
+    });
+  }
+
+  async removeChild(id: string): Promise<void> {
+    await this.prisma.child.delete({ where: { id } });
+  }
+
   async addRoute(route: Route): Promise<void> {
     await this.prisma.route.create({
       data: {

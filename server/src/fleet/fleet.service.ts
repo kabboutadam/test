@@ -111,6 +111,23 @@ export class FleetService implements OnModuleInit {
     return child;
   }
 
+  async updateChild(child: Child): Promise<Child> {
+    await this.repo.updateChild(child);
+    const i = this.childrenCache.findIndex((c) => c.id === child.id);
+    if (i >= 0) this.childrenCache[i] = child;
+    return child;
+  }
+
+  async removeChild(id: string): Promise<void> {
+    const child = this.childrenCache.find((c) => c.id === id);
+    await this.repo.removeChild(id);
+    this.childrenCache = this.childrenCache.filter((c) => c.id !== id);
+    if (child) {
+      const parent = this.parentsCache.find((p) => p.id === child.parentId);
+      if (parent) parent.childIds = parent.childIds.filter((cid) => cid !== id);
+    }
+  }
+
   async addRoute(route: Route): Promise<Route> {
     await this.repo.addRoute(route);
     this.routesCache.push(route);

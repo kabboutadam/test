@@ -6,10 +6,11 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,15 +25,21 @@ import { useApp } from '@/store/AppContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
 export default function AddChildScreen() {
-  const { addChild } = useApp();
+  const { addChild, updateChild, removeChild, children } = useApp();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [schoolId, setSchoolId] = useState<string | null>(null);
-  const [routeId, setRouteId] = useState<string | null>(null);
-  const [stopId, setStopId] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [grade, setGrade] = useState('');
+  // If a childId is passed, this screen edits that child instead of adding.
+  const { childId } = useLocalSearchParams<{ childId?: string }>();
+  const editing = children.find((c) => c.id === childId);
+
+  const [schoolId, setSchoolId] = useState<string | null>(
+    editing ? (allRoutes.find((r) => r.id === editing.routeId)?.schoolId ?? null) : null,
+  );
+  const [routeId, setRouteId] = useState<string | null>(editing?.routeId ?? null);
+  const [stopId, setStopId] = useState<string | null>(editing?.stopId ?? null);
+  const [name, setName] = useState(editing?.name ?? '');
+  const [grade, setGrade] = useState(editing?.grade ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,12 +59,36 @@ export default function AddChildScreen() {
     setBusy(true);
     setError(null);
     try {
-      await addChild({ name: name.trim(), grade: grade.trim(), routeId, stopId });
+      if (editing) {
+        await updateChild(editing.id, {
+          name: name.trim(),
+          grade: grade.trim(),
+          routeId,
+          stopId,
+        });
+      } else {
+        await addChild({ name: name.trim(), grade: grade.trim(), routeId, stopId });
+      }
       router.back();
     } catch {
-      setError('Could not add child — is the server reachable?');
+      setError('Could not save — is the server reachable?');
       setBusy(false);
     }
+  }
+
+  function confirmRemove() {
+    if (!editing) return;
+    Alert.alert('Remove child', `Remove ${editing.name} from tracking?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          await removeChild(editing.id);
+          router.back();
+        },
+      },
+    ]);
   }
 
   return (
@@ -65,7 +96,7 @@ export default function AddChildScreen() {
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
     >
-      <Text style={styles.title}>Add a child</Text>
+      <Text style={styles.title}>{editing ? 'Edit child' : 'Add a child'}</Text>
 
       <Text style={styles.label}>School</Text>
       {schools.map((s) => (
@@ -138,9 +169,16 @@ export default function AddChildScreen() {
         {busy ? (
           <ActivityIndicator color={colors.onPrimary} />
         ) : (
-          <Text style={styles.ctaText}>Add child</Text>
+          <Text style={styles.ctaText}>{editing ? 'Save changes' : 'Add child'}</Text>
         )}
       </Pressable>
+
+      {editing && !busy && (
+        <Pressable style={styles.remove} onPress={confirmRemove}>
+          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          <Text style={styles.removeText}>Remove child</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -212,4 +250,13 @@ const styles = StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.5 },
   ctaText: { color: colors.onPrimary, fontSize: 17, fontWeight: '700' },
+  remove: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  removeText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
 });
