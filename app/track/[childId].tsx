@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BusMap } from '@/components/BusMap';
 import { RouteProgress } from '@/components/RouteProgress';
 import { StopsAwayBadge } from '@/components/StopsAwayBadge';
-import { findBusByRoute, findChild, findRoute, findStopIndex } from '@/data/mockData';
+import { findBusByRoute, findRoute, findStopIndex, schools } from '@/data/mockData';
 import { computeArrival } from '@/services/stopsAway';
 import { entitles } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
@@ -17,11 +17,12 @@ type ViewMode = 'map' | 'stops';
 
 export default function TrackScreen() {
   const { childId } = useLocalSearchParams<{ childId: string }>();
-  const { positions, subscription } = useApp();
+  const { positions, subscription, children } = useApp();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>('map');
 
-  const child = childId ? findChild(childId) : undefined;
+  // Look up in the live child list so newly added/edited children work too.
+  const child = children.find((c) => c.id === childId);
   if (!child) {
     return (
       <View style={styles.centered}>
@@ -38,10 +39,25 @@ export default function TrackScreen() {
   const bus = findBusByRoute(child.routeId);
   const position = positions[child.routeId];
   const childStopIndex = findStopIndex(route, child.stopId);
+  const childStop = route.stops[childStopIndex];
+  const school = schools.find((s) => s.id === route.schoolId);
+
+  function callDriver() {
+    if (bus) Linking.openURL(`tel:${bus.driverPhone.replace(/\s/g, '')}`);
+  }
 
   return (
     <>
-      <Stack.Screen options={{ title: child.name }} />
+      <Stack.Screen
+        options={{
+          title: child.name,
+          headerRight: () => (
+            <Link href={{ pathname: '/add-child', params: { childId: child.id } }}>
+              <Text style={styles.headerEdit}>Edit</Text>
+            </Link>
+          ),
+        }}
+      />
       <ScrollView
         style={styles.screen}
         contentContainerStyle={[
@@ -66,18 +82,29 @@ export default function TrackScreen() {
           <Text style={styles.muted}>Connecting to bus…</Text>
         )}
 
+        <View style={styles.infoCard}>
+          <InfoRow icon="school" label="School" value={school?.name ?? '—'} />
+          <InfoRow icon="git-branch" label="Route" value={route.name} />
+          <InfoRow
+            icon="location"
+            label="Boards at"
+            value={childStop ? `${childStop.name} · ${childStop.scheduledTime}` : '—'}
+          />
+        </View>
+
         {bus && (
-          <View style={styles.busCard}>
+          <Pressable style={styles.busCard} onPress={callDriver}>
             <View style={styles.busIcon}>
               <Ionicons name="bus" size={22} color={colors.onPrimary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.busTitle}>{bus.plateNumber}</Text>
-              <Text style={styles.busMeta}>
-                {bus.driverName} · {bus.driverPhone}
-              </Text>
+              <Text style={styles.busMeta}>{bus.driverName}</Text>
             </View>
-          </View>
+            <View style={styles.callButton}>
+              <Ionicons name="call" size={18} color={colors.onPrimary} />
+            </View>
+          </Pressable>
         )}
 
         <View style={styles.routeHeader}>
@@ -104,6 +131,26 @@ export default function TrackScreen() {
         )}
       </ScrollView>
     </>
+  );
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.infoRow}>
+      <Ionicons name={icon} size={18} color={colors.primary} />
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -203,6 +250,32 @@ const styles = StyleSheet.create({
   },
   busTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   busMeta: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  callButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 2,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  infoLabel: { fontSize: 13, color: colors.textMuted, width: 72 },
+  infoValue: { fontSize: 14, color: colors.text, fontWeight: '600', flex: 1 },
+  headerEdit: { color: colors.onPrimary, fontSize: 16, fontWeight: '600' },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
