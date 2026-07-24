@@ -10,11 +10,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@expo/vector-icons": "^15.0.2",
+    "@expo/vector-icons": "~15.0.2",
     "expo": "~56.0.0",
     "expo-asset": "~56.0.21",
     "expo-constants": "~56.0.22",
     "expo-device": "~56.0.4",
+    "expo-font": "~56.0.7",
     "expo-linking": "~56.0.16",
     "expo-location": "~56.0.22",
     "expo-notifications": "~56.0.22",
