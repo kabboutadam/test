@@ -4,7 +4,15 @@
  * calls when the backend is live — nothing else needs to change.
  */
 
-import { Bus, Child, Parent, Route, School, Subscription } from '@/models/types';
+import {
+  Bus,
+  Child,
+  Parent,
+  Route,
+  RouteSession,
+  School,
+  Subscription,
+} from '@/models/types';
 
 export const school: School = {
   id: 'sch_1',
@@ -29,6 +37,8 @@ export const routeA: Route = {
   id: 'route_a',
   name: 'Route A — Achrafieh Morning',
   schoolId: 'sch_1',
+  session: 'morning',
+  afternoonRouteId: 'route_a_pm',
   stops: [
     {
       id: 'a0',
@@ -96,6 +106,8 @@ export const routeB: Route = {
   id: 'route_b',
   name: 'Route B — Hamra Morning',
   schoolId: 'sch_1',
+  session: 'morning',
+  afternoonRouteId: 'route_b_pm',
   stops: [
     {
       id: 'b0',
@@ -153,6 +165,8 @@ export const routeC: Route = {
   id: 'route_c',
   name: 'Route C — Jounieh Morning',
   schoolId: 'sch_2',
+  session: 'morning',
+  afternoonRouteId: 'route_c_pm',
   stops: [
     { id: 'c0', name: 'Jounieh, Old Souk', order: 0, location: { latitude: 33.9808, longitude: 35.6178 }, travelMinutesFromPrev: 0, scheduledTime: '06:45' },
     { id: 'c1', name: 'Kaslik', order: 1, location: { latitude: 33.9736, longitude: 35.6144 }, travelMinutesFromPrev: 5, scheduledTime: '06:50' },
@@ -162,7 +176,81 @@ export const routeC: Route = {
   ],
 };
 
-export const routes: Route[] = [routeA, routeB, routeC];
+/**
+ * Build an afternoon drop-off route from a morning pickup route. The bus and
+ * driver are the same; it just runs in reverse — the school (the morning route's
+ * last stop) becomes the first stop, and children are dropped at the same
+ * neighborhoods they boarded from. Travel times mirror the morning segments;
+ * scheduled times are recomputed from `startTime`.
+ */
+function buildAfternoonRoute(
+  morning: Route,
+  opts: { id: string; name: string; startTime: string },
+): Route {
+  const reversed = [...morning.stops].reverse();
+  const n = morning.stops.length;
+  let clock = parseHm(opts.startTime);
+
+  const stops = reversed.map((stop, idx) => {
+    // Travel from the previous reversed stop equals the morning segment time
+    // between the same two neighborhoods (segments are symmetric here).
+    const travel = idx === 0 ? 0 : morning.stops[n - idx].travelMinutesFromPrev;
+    clock += travel;
+    return {
+      id: `${opts.id}_${idx}`,
+      name: stop.name,
+      order: idx,
+      location: stop.location,
+      travelMinutesFromPrev: travel,
+      scheduledTime: formatHm(clock),
+    };
+  });
+
+  return {
+    id: opts.id,
+    name: opts.name,
+    schoolId: morning.schoolId,
+    session: 'afternoon',
+    stops,
+  };
+}
+
+function parseHm(hm: string): number {
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function formatHm(mins: number): string {
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** Afternoon drop-off routes (school → neighborhoods), one per morning route. */
+export const routeApm = buildAfternoonRoute(routeA, {
+  id: 'route_a_pm',
+  name: 'Route A — Achrafieh Afternoon',
+  startTime: '14:15',
+});
+export const routeBpm = buildAfternoonRoute(routeB, {
+  id: 'route_b_pm',
+  name: 'Route B — Hamra Afternoon',
+  startTime: '14:15',
+});
+export const routeCpm = buildAfternoonRoute(routeC, {
+  id: 'route_c_pm',
+  name: 'Route C — Jounieh Afternoon',
+  startTime: '14:00',
+});
+
+export const routes: Route[] = [
+  routeA,
+  routeB,
+  routeC,
+  routeApm,
+  routeBpm,
+  routeCpm,
+];
 
 export const buses: Bus[] = [
   {
@@ -234,7 +322,44 @@ export function findRoute(routeId: string): Route | undefined {
 }
 
 export function findBusByRoute(routeId: string): Bus | undefined {
-  return buses.find((b) => b.routeId === routeId);
+  const direct = buses.find((b) => b.routeId === routeId);
+  if (direct) return direct;
+  // Afternoon routes have no bus of their own — it's the same bus doing the
+  // return trip, so fall back to the morning route's bus.
+  const morning = routes.find((r) => r.afternoonRouteId === routeId);
+  return morning ? buses.find((b) => b.routeId === morning.id) : undefined;
+}
+
+/**
+ * Resolve which route + stop applies to a child for the given session. A child
+ * is enrolled on a morning route; the afternoon drop-off mirrors it — same bus
+ * in reverse, dropping the child at the same neighborhood they boarded from.
+ */
+export function routeForChild(
+  child: Child,
+  session: RouteSession,
+): { route: Route; stopId: string } {
+  const morning = findRoute(child.routeId);
+  if (!morning) {
+    // Shouldn't happen, but keep the caller safe.
+    return { route: routeA, stopId: child.stopId };
+  }
+  if (session === 'morning' || !morning.afternoonRouteId) {
+    return { route: morning, stopId: child.stopId };
+  }
+  const afternoon = findRoute(morning.afternoonRouteId);
+  if (!afternoon) return { route: morning, stopId: child.stopId };
+
+  const boardName = morning.stops.find((s) => s.id === child.stopId)?.name;
+  const dropStop =
+    afternoon.stops.find((s) => s.name === boardName) ??
+    afternoon.stops[afternoon.stops.length - 1];
+  return { route: afternoon, stopId: dropStop.id };
+}
+
+/** Best-guess default session from the wall clock: morning before 12:00. */
+export function currentSession(now: Date = new Date()): RouteSession {
+  return now.getHours() < 12 ? 'morning' : 'afternoon';
 }
 
 export function findChild(childId: string): Child | undefined {

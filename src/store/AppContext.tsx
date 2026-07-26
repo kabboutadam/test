@@ -23,11 +23,19 @@ import { BackendPositionSource, PositionSource } from '@/api/positionSource';
 import {
   buses,
   children as allChildren,
+  currentSession,
   initialSubscription,
   parent,
   routes,
 } from '@/data/mockData';
-import { Bus, BusPosition, Child, Parent, Subscription } from '@/models/types';
+import {
+  Bus,
+  BusPosition,
+  Child,
+  Parent,
+  RouteSession,
+  Subscription,
+} from '@/models/types';
 import { BusSimulator } from '@/services/busSimulator';
 import { activate as activatePlan, Plan } from '@/services/subscription';
 import { useAuth } from '@/store/AuthContext';
@@ -40,6 +48,9 @@ interface AppState {
   subscription: Subscription;
   /** 'backend' when reading live positions from the API, else 'simulator'. */
   positionMode: 'backend' | 'simulator';
+  /** Morning pickup vs afternoon drop-off — which run the UI is tracking. */
+  session: RouteSession;
+  setSession: (session: RouteSession) => void;
   subscribe: (planId: Plan['id']) => void;
   addChild: (input: api.NewChild) => Promise<void>;
   updateChild: (id: string, patch: api.ChildPatch) => Promise<void>;
@@ -63,6 +74,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ? { status: 'none', plan: null, renewsAt: null }
       : initialSubscription,
   );
+  // Default to the run that matches the time of day; the parent can switch.
+  const [session, setSession] = useState<RouteSession>(currentSession());
 
   // Wire up the position source. In simulator mode this runs once. In backend
   // mode it (re)connects whenever the auth token changes — the token is sent in
@@ -115,6 +128,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       positions,
       subscription,
       positionMode: config.useBackend ? 'backend' : 'simulator',
+      session,
+      setSession,
       subscribe: async (planId: Plan['id']) => {
         if (config.useBackend && token) {
           // Real billing: create a checkout, then confirm the payment. The
@@ -157,7 +172,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       },
       resetSimulation: () => sourceRef.current?.reset(),
     }),
-    [childList, positions, subscription, token],
+    [childList, positions, subscription, session, token],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

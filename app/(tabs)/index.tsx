@@ -5,15 +5,16 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChildCard } from '@/components/ChildCard';
-import { findRoute, findStopIndex } from '@/data/mockData';
+import { findStopIndex, routeForChild } from '@/data/mockData';
 import { useI18n } from '@/i18n/I18nContext';
+import { RouteSession } from '@/models/types';
 import { computeArrival } from '@/services/stopsAway';
 import { entitles, statusLabel } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
 export default function HomeScreen() {
-  const { children, positions, subscription } = useApp();
+  const { children, positions, subscription, session, setSession } = useApp();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const unlocked = entitles(subscription);
@@ -31,12 +32,14 @@ export default function HomeScreen() {
         label={statusLabel(subscription)}
       />
 
+      <SessionToggle value={session} onChange={setSession} />
+
       <Text style={styles.sectionTitle}>{t('home.liveBuses')}</Text>
 
       {children.map((child) => {
-        const route = findRoute(child.routeId)!;
-        const position = positions[child.routeId];
-        const childStopIndex = findStopIndex(route, child.stopId);
+        const { route, stopId } = routeForChild(child, session);
+        const position = positions[route.id];
+        const childStopIndex = findStopIndex(route, stopId);
         const arrival = position
           ? computeArrival(position, route, childStopIndex)
           : {
@@ -48,7 +51,12 @@ export default function HomeScreen() {
 
         return (
           <View key={child.id} style={styles.cardWrap}>
-            <ChildCard child={child} routeName={route.name} arrival={arrival} />
+            <ChildCard
+              child={child}
+              routeName={route.name}
+              arrival={arrival}
+              session={session}
+            />
           </View>
         );
       })}
@@ -67,6 +75,49 @@ export default function HomeScreen() {
         </Pressable>
       </Link>
     </ScrollView>
+  );
+}
+
+function SessionToggle({
+  value,
+  onChange,
+}: {
+  value: RouteSession;
+  onChange: (s: RouteSession) => void;
+}) {
+  const { t } = useI18n();
+  const options: { key: RouteSession; icon: 'sunny' | 'moon'; label: string }[] =
+    [
+      { key: 'morning', icon: 'sunny', label: t('session.morning') },
+      { key: 'afternoon', icon: 'moon', label: t('session.afternoon') },
+    ];
+  return (
+    <View style={styles.sessionToggle}>
+      {options.map((opt) => {
+        const active = value === opt.key;
+        return (
+          <Pressable
+            key={opt.key}
+            onPress={() => onChange(opt.key)}
+            style={[styles.sessionItem, active && styles.sessionItemActive]}
+          >
+            <Ionicons
+              name={opt.icon}
+              size={16}
+              color={active ? colors.onPrimary : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.sessionText,
+                { color: active ? colors.onPrimary : colors.textMuted },
+              ]}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -135,6 +186,29 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
+  },
+  sessionToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.border,
+    borderRadius: radius.pill,
+    padding: 3,
+    gap: 2,
+  },
+  sessionItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+  },
+  sessionItemActive: {
+    backgroundColor: colors.primary,
+  },
+  sessionText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   cardWrap: {
     marginBottom: spacing.sm,

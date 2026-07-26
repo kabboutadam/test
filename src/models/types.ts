@@ -29,12 +29,22 @@ export interface Stop {
   scheduledTime: string;
 }
 
+/** A route runs either the morning pickup (home → school) or the afternoon
+ * drop-off (school → home). */
+export type RouteSession = 'morning' | 'afternoon';
+
 export interface Route {
   id: string;
   name: string;
   schoolId: string;
   /** Ordered list of stops; index === Stop.order. */
   stops: Stop[];
+  /** Whether this is the morning run or the afternoon run. Defaults to morning
+   * for older data that predates the field. */
+  session?: RouteSession;
+  /** On a morning route, the id of its afternoon counterpart (same bus, reverse
+   * direction). Absent on afternoon routes. */
+  afternoonRouteId?: string;
 }
 
 export interface Bus {

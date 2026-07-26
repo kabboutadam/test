@@ -29,6 +29,9 @@ const en: Dict = {
   'home.addChild': 'Add child',
   'home.connecting': 'Connecting…',
 
+  'session.morning': 'Morning',
+  'session.afternoon': 'Afternoon',
+
   'status.enRoute': 'On the move · {speed} km/h',
   'status.atStop': 'Stopped to pick up',
   'status.completed': 'Route completed',
@@ -40,13 +43,16 @@ const en: Dict = {
   'badge.nStopsAway': '{n} stops away',
   'badge.oneStopAway': '1 stop away',
   'badge.arriving': 'Arriving at your stop',
+  'badge.dropping': 'Dropping off at your stop',
   'badge.pickedUp': 'Picked up',
+  'badge.droppedOff': 'Dropped off',
   'badge.notStarted': 'Not started yet',
 
   'track.title': 'Live tracking',
   'track.school': 'School',
   'track.route': 'Route',
   'track.boardsAt': 'Boards at',
+  'track.dropOffAt': 'Dropped off at',
   'track.map': 'Map',
   'track.stops': 'Stops',
   'track.lockedTitle': 'Live tracking is locked',
@@ -119,6 +125,9 @@ const ar: Dict = {
   'home.addChild': 'إضافة طفل',
   'home.connecting': 'جارٍ الاتصال…',
 
+  'session.morning': 'صباحًا',
+  'session.afternoon': 'بعد الظهر',
+
   'status.enRoute': 'في الطريق · {speed} كم/س',
   'status.atStop': 'متوقّف لأخذ الركّاب',
   'status.completed': 'انتهت الرحلة',
@@ -130,13 +139,16 @@ const ar: Dict = {
   'badge.nStopsAway': 'على بُعد {n} محطات',
   'badge.oneStopAway': 'على بُعد محطة واحدة',
   'badge.arriving': 'يصل إلى محطتك',
+  'badge.dropping': 'يصل لإنزال طفلك',
   'badge.pickedUp': 'تمّ الصعود',
+  'badge.droppedOff': 'تمّ الإنزال',
   'badge.notStarted': 'لم تبدأ الرحلة بعد',
 
   'track.title': 'التتبّع المباشر',
   'track.school': 'المدرسة',
   'track.route': 'المسار',
   'track.boardsAt': 'يصعد من',
+  'track.dropOffAt': 'يُنزَل في',
   'track.map': 'الخريطة',
   'track.stops': 'المحطات',
   'track.lockedTitle': 'التتبّع المباشر مقفل',
@@ -197,15 +209,16 @@ export const dictionaries: Record<Lang, Dict> = { en, ar };
  * Maps an arrival (phase + stopsAway) to a translation key + vars, so the pure
  * stopsAway service can stay language-agnostic and the UI localizes at render.
  */
-export function arrivalLabelKey(arrival: {
-  phase: string;
-  stopsAway: number;
-}): { key: string; vars?: Record<string, string | number> } {
+export function arrivalLabelKey(
+  arrival: { phase: string; stopsAway: number },
+  session: 'morning' | 'afternoon' = 'morning',
+): { key: string; vars?: Record<string, string | number> } {
+  const afternoon = session === 'afternoon';
   switch (arrival.phase) {
     case 'arriving':
-      return { key: 'badge.arriving' };
+      return { key: afternoon ? 'badge.dropping' : 'badge.arriving' };
     case 'picked_up':
-      return { key: 'badge.pickedUp' };
+      return { key: afternoon ? 'badge.droppedOff' : 'badge.pickedUp' };
     case 'not_started':
       return { key: 'badge.notStarted' };
     case 'approaching':

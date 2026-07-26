@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '@/i18n/I18nContext';
 import { arrivalLabelKey } from '@/i18n/strings';
+import { RouteSession } from '@/models/types';
 import { ArrivalInfo } from '@/services/stopsAway';
 import { colors, radius, spacing } from '@/theme/theme';
 
@@ -14,12 +15,18 @@ const phaseColor: Record<ArrivalInfo['phase'], string> = {
   not_started: colors.textMuted,
 };
 
-export function StopsAwayBadge({ arrival }: { arrival: ArrivalInfo }) {
+export function StopsAwayBadge({
+  arrival,
+  session = 'morning',
+}: {
+  arrival: ArrivalInfo;
+  session?: RouteSession;
+}) {
   const { t } = useI18n();
   const color = phaseColor[arrival.phase];
   const showBig =
     arrival.phase === 'incoming' || arrival.phase === 'approaching';
-  const { key, vars } = arrivalLabelKey(arrival);
+  const { key, vars } = arrivalLabelKey(arrival, session);
 
   return (
     <View style={[styles.container, { borderColor: color }]}>

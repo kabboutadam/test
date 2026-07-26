@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BusMap } from '@/components/BusMap';
 import { RouteProgress } from '@/components/RouteProgress';
 import { StopsAwayBadge } from '@/components/StopsAwayBadge';
-import { findBusByRoute, findRoute, findStopIndex, schools } from '@/data/mockData';
+import { findBusByRoute, findStopIndex, routeForChild, schools } from '@/data/mockData';
 import { useI18n } from '@/i18n/I18nContext';
 import { computeArrival } from '@/services/stopsAway';
 import { entitles } from '@/services/subscription';
@@ -18,7 +18,7 @@ type ViewMode = 'map' | 'stops';
 
 export default function TrackScreen() {
   const { childId } = useLocalSearchParams<{ childId: string }>();
-  const { positions, subscription, children } = useApp();
+  const { positions, subscription, children, session } = useApp();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>('map');
@@ -37,10 +37,10 @@ export default function TrackScreen() {
     return <LockedState />;
   }
 
-  const route = findRoute(child.routeId)!;
-  const bus = findBusByRoute(child.routeId);
-  const position = positions[child.routeId];
-  const childStopIndex = findStopIndex(route, child.stopId);
+  const { route, stopId } = routeForChild(child, session);
+  const bus = findBusByRoute(route.id);
+  const position = positions[route.id];
+  const childStopIndex = findStopIndex(route, stopId);
   const childStop = route.stops[childStopIndex];
   const school = schools.find((s) => s.id === route.schoolId);
 
@@ -69,7 +69,10 @@ export default function TrackScreen() {
       >
         {position ? (
           <View style={styles.hero}>
-            <StopsAwayBadge arrival={computeArrival(position, route, childStopIndex)} />
+            <StopsAwayBadge
+              arrival={computeArrival(position, route, childStopIndex)}
+              session={session}
+            />
             <Text style={styles.speed}>
               {position.status === 'en_route'
                 ? t('status.enRoute', { speed: position.speedKmh })
@@ -89,7 +92,7 @@ export default function TrackScreen() {
           <InfoRow icon="git-branch" label={t('track.route')} value={route.name} />
           <InfoRow
             icon="location"
-            label={t('track.boardsAt')}
+            label={session === 'afternoon' ? t('track.dropOffAt') : t('track.boardsAt')}
             value={childStop ? `${childStop.name} · ${childStop.scheduledTime}` : '—'}
           />
         </View>

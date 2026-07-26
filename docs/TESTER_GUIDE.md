@@ -23,7 +23,13 @@ anything up** — just open it and explore.
    stop. Then tap a child in Account to **change their stop** or remove them.
 5. **Subscription.** Home banner or Account → **Manage plan** → pick a plan →
    Subscribe. (No real charge — it's a demo.)
-6. **Restart the demo** anytime: Account → **Restart bus simulation**.
+6. **Morning vs Afternoon.** At the top of Home, switch between **Morning**
+   (home → school pickup) and **Afternoon** (school → home drop-off). Each child
+   is dropped at the same neighborhood they boarded from, and the countdown flips
+   to "dropping off." It defaults to whichever matches the current time of day.
+7. **Arabic.** Account → **Language** → العربية. The whole app switches to Arabic
+   and flips to right-to-left layout. Switch back with English.
+8. **Restart the demo** anytime: Account → **Restart bus simulation**.
 
 ## What feedback helps most
 

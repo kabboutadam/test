@@ -25,7 +25,7 @@ import React, {
 
 import * as api from '@/api/client';
 import { config } from '@/api/config';
-import { findRoute, findStopIndex } from '@/data/mockData';
+import { findStopIndex, routeForChild } from '@/data/mockData';
 import { ArrivalNotifier } from '@/services/arrivalNotifier';
 import { computeArrival } from '@/services/stopsAway';
 import { useApp } from '@/store/AppContext';
@@ -50,7 +50,7 @@ interface NotificationsState {
 const NotificationsContext = createContext<NotificationsState | null>(null);
 
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
-  const { positions, children: kids } = useApp();
+  const { positions, children: kids, session } = useApp();
   const { token } = useAuth();
   const [enabled, setEnabledState] = useState(true);
   const [granted, setGranted] = useState(false);
@@ -99,15 +99,20 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!enabled || !granted || config.useBackend) return;
     for (const child of kids) {
-      const route = findRoute(child.routeId);
-      const position = positions[child.routeId];
-      if (!route || !position) continue;
+      const { route, stopId } = routeForChild(child, session);
+      const position = positions[route.id];
+      if (!position) continue;
       const arrival = computeArrival(
         position,
         route,
-        findStopIndex(route, child.stopId),
+        findStopIndex(route, stopId),
       );
-      const msg = notifierRef.current.evaluate(child.id, child.name, arrival);
+      // Key on session too so a morning/afternoon switch tracks fresh thresholds.
+      const msg = notifierRef.current.evaluate(
+        `${child.id}:${session}`,
+        child.name,
+        arrival,
+      );
       if (msg) {
         void Notifications.scheduleNotificationAsync({
           content: { title: msg.title, body: msg.body, data: { childId: child.id } },
@@ -115,7 +120,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         });
       }
     }
-  }, [positions, kids, enabled, granted]);
+  }, [positions, kids, enabled, granted, session]);
 
   const value = useMemo<NotificationsState>(
     () => ({

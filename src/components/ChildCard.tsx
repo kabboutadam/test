@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '@/i18n/I18nContext';
 import { arrivalLabelKey } from '@/i18n/strings';
-import { Child } from '@/models/types';
+import { Child, RouteSession } from '@/models/types';
 import { ArrivalInfo } from '@/services/stopsAway';
 import { colors, radius, spacing } from '@/theme/theme';
 
@@ -13,6 +13,7 @@ interface Props {
   child: Child;
   routeName: string;
   arrival: ArrivalInfo;
+  session: RouteSession;
 }
 
 const phaseColor: Record<ArrivalInfo['phase'], string> = {
@@ -23,14 +24,14 @@ const phaseColor: Record<ArrivalInfo['phase'], string> = {
   not_started: colors.textMuted,
 };
 
-export function ChildCard({ child, routeName, arrival }: Props) {
+export function ChildCard({ child, routeName, arrival, session }: Props) {
   const { t } = useI18n();
   const initials = child.name
     .split(' ')
     .map((p) => p[0])
     .slice(0, 2)
     .join('');
-  const { key, vars } = arrivalLabelKey(arrival);
+  const { key, vars } = arrivalLabelKey(arrival, session);
   const statusLabel = t(key, vars);
   const eta =
     arrival.etaMinutes > 0 ? `  ·  ~${arrival.etaMinutes} ${t('common.min')}` : '';
