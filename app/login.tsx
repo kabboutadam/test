@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 
 import { ApiError } from '@/api/client';
+import { useI18n } from '@/i18n/I18nContext';
 import { useAuth } from '@/store/AuthContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
@@ -25,11 +26,20 @@ const DEMO_PHONE = '+961 3 555 777';
 
 export default function LoginScreen() {
   const { requestOtp, verifyOtp } = useAuth();
+  const { t } = useI18n();
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState(DEMO_PHONE);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function describe(e: unknown): string {
+    if (e instanceof ApiError) {
+      if (e.status === 401) return t('login.invalidCode');
+      return `Something went wrong (${e.status}).`;
+    }
+    return t('login.networkError');
+  }
 
   async function sendCode() {
     setBusy(true);
@@ -66,11 +76,11 @@ export default function LoginScreen() {
       <View style={styles.logo}>
         <Ionicons name="bus" size={40} color={colors.onPrimary} />
       </View>
-      <Text style={styles.title}>BusMapp</Text>
+      <Text style={styles.title}>{t('app.name')}</Text>
       <Text style={styles.subtitle}>
         {step === 'phone'
-          ? 'Sign in with your phone number'
-          : `Enter the code sent to ${phone}`}
+          ? t('login.subtitle')
+          : t('login.codeSentTo', { phone })}
       </Text>
 
       {step === 'phone' ? (
@@ -107,26 +117,18 @@ export default function LoginScreen() {
           <ActivityIndicator color={colors.onPrimary} />
         ) : (
           <Text style={styles.ctaText}>
-            {step === 'phone' ? 'Send code' : 'Verify'}
+            {step === 'phone' ? t('login.sendCode') : t('login.verify')}
           </Text>
         )}
       </Pressable>
 
       {step === 'code' && !busy && (
         <Pressable onPress={() => setStep('phone')}>
-          <Text style={styles.link}>Use a different number</Text>
+          <Text style={styles.link}>{t('login.differentNumber')}</Text>
         </Pressable>
       )}
     </KeyboardAvoidingView>
   );
-}
-
-function describe(e: unknown): string {
-  if (e instanceof ApiError) {
-    if (e.status === 401) return 'Invalid or expired code.';
-    return `Something went wrong (${e.status}).`;
-  }
-  return 'Network error — is the server running?';
 }
 
 const styles = StyleSheet.create({

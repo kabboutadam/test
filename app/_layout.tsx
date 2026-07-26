@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { config } from '@/api/config';
+import { I18nProvider, useI18n } from '@/i18n/I18nContext';
 import { AppProvider } from '@/store/AppContext';
 import { AuthProvider, useAuth } from '@/store/AuthContext';
 import { NotificationsProvider } from '@/store/NotificationsContext';
@@ -13,16 +14,18 @@ import { colors } from '@/theme/theme';
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <AuthGate>
-          <AppProvider>
-            <NotificationsProvider>
-              <StatusBar style="light" />
-              <RootStack />
-            </NotificationsProvider>
-          </AppProvider>
-        </AuthGate>
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <AuthGate>
+            <AppProvider>
+              <NotificationsProvider>
+                <StatusBar style="light" />
+                <RootStack />
+              </NotificationsProvider>
+            </AppProvider>
+          </AuthGate>
+        </AuthProvider>
+      </I18nProvider>
     </GestureHandlerRootView>
   );
 }
@@ -54,6 +57,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function RootStack() {
+  const { t } = useI18n();
   return (
     <Stack
       screenOptions={{
@@ -67,19 +71,19 @@ function RootStack() {
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen
         name="track/[childId]"
-        options={{ title: 'Live tracking', presentation: 'card' }}
+        options={{ title: t('track.title'), presentation: 'card' }}
       />
       <Stack.Screen
         name="driver/index"
-        options={{ title: 'Driver mode' }}
+        options={{ title: t('account.driverMode') }}
       />
       <Stack.Screen
         name="add-child"
-        options={{ title: 'Add child', presentation: 'modal' }}
+        options={{ title: t('addChild.addTitle'), presentation: 'modal' }}
       />
       <Stack.Screen
         name="paywall"
-        options={{ title: 'Subscription', presentation: 'modal' }}
+        options={{ title: t('account.subscription'), presentation: 'modal' }}
       />
     </Stack>
   );

@@ -1,6 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from '@/i18n/I18nContext';
+import { arrivalLabelKey } from '@/i18n/strings';
 import { ArrivalInfo } from '@/services/stopsAway';
 import { colors, radius, spacing } from '@/theme/theme';
 
@@ -13,9 +15,11 @@ const phaseColor: Record<ArrivalInfo['phase'], string> = {
 };
 
 export function StopsAwayBadge({ arrival }: { arrival: ArrivalInfo }) {
+  const { t } = useI18n();
   const color = phaseColor[arrival.phase];
   const showBig =
     arrival.phase === 'incoming' || arrival.phase === 'approaching';
+  const { key, vars } = arrivalLabelKey(arrival);
 
   return (
     <View style={[styles.container, { borderColor: color }]}>
@@ -24,15 +28,15 @@ export function StopsAwayBadge({ arrival }: { arrival: ArrivalInfo }) {
           <Text style={[styles.bigNumber, { color }]}>{arrival.stopsAway}</Text>
           <View>
             <Text style={[styles.bigLabel, { color }]}>
-              {arrival.stopsAway === 1 ? 'stop' : 'stops'} away
+              {arrival.stopsAway === 1 ? t('badge.stopAway') : t('badge.stopsAway')}
             </Text>
             {arrival.etaMinutes > 0 && (
-              <Text style={styles.eta}>~{arrival.etaMinutes} min</Text>
+              <Text style={styles.eta}>~{arrival.etaMinutes} {t('common.min')}</Text>
             )}
           </View>
         </View>
       ) : (
-        <Text style={[styles.statusText, { color }]}>{arrival.label}</Text>
+        <Text style={[styles.statusText, { color }]}>{t(key, vars)}</Text>
       )}
     </View>
   );

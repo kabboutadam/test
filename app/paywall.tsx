@@ -11,24 +11,26 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useI18n } from '@/i18n/I18nContext';
 import { plans, Plan, statusLabel } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
-const FEATURES = [
-  'Live bus location, updated every second',
-  'See exactly how many stops away the bus is',
-  'ETA to your child’s stop',
-  'Covers every child in your family',
-];
-
 export default function PaywallScreen() {
   const { subscription, subscribe } = useApp();
+  const { t } = useI18n();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<Plan['id']>('yearly');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const features = [
+    t('paywall.feature1'),
+    t('paywall.feature2'),
+    t('paywall.feature3'),
+    t('paywall.feature4'),
+  ];
 
   async function onSubscribe() {
     setBusy(true);
@@ -37,7 +39,7 @@ export default function PaywallScreen() {
       await subscribe(selected);
       router.back();
     } catch {
-      setError('Payment could not be completed. Please try again.');
+      setError(t('paywall.processing'));
       setBusy(false);
     }
   }
@@ -50,11 +52,13 @@ export default function PaywallScreen() {
         { paddingBottom: insets.bottom + spacing.xl },
       ]}
     >
-      <Text style={styles.title}>Track every ride</Text>
-      <Text style={styles.subtitle}>Current status: {statusLabel(subscription)}</Text>
+      <Text style={styles.title}>{t('paywall.title')}</Text>
+      <Text style={styles.subtitle}>
+        {t('paywall.currentStatus', { status: statusLabel(subscription) })}
+      </Text>
 
       <View style={styles.features}>
-        {FEATURES.map((f) => (
+        {features.map((f) => (
           <View key={f} style={styles.featureRow}>
             <Ionicons name="checkmark-circle" size={20} color={colors.success} />
             <Text style={styles.featureText}>{f}</Text>
@@ -98,7 +102,9 @@ export default function PaywallScreen() {
           <ActivityIndicator color={colors.onPrimary} />
         ) : (
           <Text style={styles.ctaText}>
-            Subscribe {selected === 'yearly' ? 'yearly' : 'monthly'}
+            {t('paywall.subscribe', {
+              plan: selected === 'yearly' ? t('paywall.yearly') : t('paywall.monthly'),
+            })}
           </Text>
         )}
       </Pressable>

@@ -8,6 +8,7 @@ import { BusMap } from '@/components/BusMap';
 import { RouteProgress } from '@/components/RouteProgress';
 import { StopsAwayBadge } from '@/components/StopsAwayBadge';
 import { findBusByRoute, findRoute, findStopIndex, schools } from '@/data/mockData';
+import { useI18n } from '@/i18n/I18nContext';
 import { computeArrival } from '@/services/stopsAway';
 import { entitles } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
@@ -18,6 +19,7 @@ type ViewMode = 'map' | 'stops';
 export default function TrackScreen() {
   const { childId } = useLocalSearchParams<{ childId: string }>();
   const { positions, subscription, children } = useApp();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>('map');
 
@@ -26,7 +28,7 @@ export default function TrackScreen() {
   if (!child) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.muted}>Child not found.</Text>
+        <Text style={styles.muted}>{t('track.childNotFound')}</Text>
       </View>
     );
   }
@@ -53,7 +55,7 @@ export default function TrackScreen() {
           title: child.name,
           headerRight: () => (
             <Link href={{ pathname: '/add-child', params: { childId: child.id } }}>
-              <Text style={styles.headerEdit}>Edit</Text>
+              <Text style={styles.headerEdit}>{t('common.edit')}</Text>
             </Link>
           ),
         }}
@@ -70,24 +72,24 @@ export default function TrackScreen() {
             <StopsAwayBadge arrival={computeArrival(position, route, childStopIndex)} />
             <Text style={styles.speed}>
               {position.status === 'en_route'
-                ? `On the move · ${position.speedKmh} km/h`
+                ? t('status.enRoute', { speed: position.speedKmh })
                 : position.status === 'at_stop'
-                  ? 'Stopped to pick up'
+                  ? t('status.atStop')
                   : position.status === 'completed'
-                    ? 'Route completed'
-                    : 'Not started'}
+                    ? t('status.completed')
+                    : t('status.notStarted')}
             </Text>
           </View>
         ) : (
-          <Text style={styles.muted}>Connecting to bus…</Text>
+          <Text style={styles.muted}>{t('status.connecting')}</Text>
         )}
 
         <View style={styles.infoCard}>
-          <InfoRow icon="school" label="School" value={school?.name ?? '—'} />
-          <InfoRow icon="git-branch" label="Route" value={route.name} />
+          <InfoRow icon="school" label={t('track.school')} value={school?.name ?? '—'} />
+          <InfoRow icon="git-branch" label={t('track.route')} value={route.name} />
           <InfoRow
             icon="location"
-            label="Boards at"
+            label={t('track.boardsAt')}
             value={childStop ? `${childStop.name} · ${childStop.scheduledTime}` : '—'}
           />
         </View>
@@ -108,7 +110,7 @@ export default function TrackScreen() {
         )}
 
         <View style={styles.routeHeader}>
-          <Text style={styles.sectionTitle}>Route</Text>
+          <Text style={styles.sectionTitle}>{t('track.route')}</Text>
           <SegmentedToggle value={viewMode} onChange={setViewMode} />
         </View>
 
@@ -161,9 +163,10 @@ function SegmentedToggle({
   value: ViewMode;
   onChange: (v: ViewMode) => void;
 }) {
+  const { t } = useI18n();
   const options: { key: ViewMode; icon: 'map' | 'list'; label: string }[] = [
-    { key: 'map', icon: 'map', label: 'Map' },
-    { key: 'stops', icon: 'list', label: 'Stops' },
+    { key: 'map', icon: 'map', label: t('track.map') },
+    { key: 'stops', icon: 'list', label: t('track.stops') },
   ];
   return (
     <View style={styles.segment}>
@@ -196,15 +199,14 @@ function SegmentedToggle({
 }
 
 function LockedState() {
+  const { t } = useI18n();
   return (
     <View style={styles.centered}>
       <Ionicons name="lock-closed" size={48} color={colors.warning} />
-      <Text style={styles.lockedTitle}>Live tracking is locked</Text>
-      <Text style={styles.muted}>
-        Subscribe to see your child&apos;s bus in real time.
-      </Text>
+      <Text style={styles.lockedTitle}>{t('track.lockedTitle')}</Text>
+      <Text style={styles.muted}>{t('track.lockedBody')}</Text>
       <Link href="/paywall" style={styles.lockedButton}>
-        <Text style={styles.lockedButtonText}>View plans</Text>
+        <Text style={styles.lockedButtonText}>{t('track.viewPlans')}</Text>
       </Link>
     </View>
   );

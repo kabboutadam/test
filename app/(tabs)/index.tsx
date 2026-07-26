@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChildCard } from '@/components/ChildCard';
 import { findRoute, findStopIndex } from '@/data/mockData';
+import { useI18n } from '@/i18n/I18nContext';
 import { computeArrival } from '@/services/stopsAway';
 import { entitles, statusLabel } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
@@ -13,6 +14,7 @@ import { colors, radius, spacing } from '@/theme/theme';
 
 export default function HomeScreen() {
   const { children, positions, subscription } = useApp();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const unlocked = entitles(subscription);
 
@@ -29,7 +31,7 @@ export default function HomeScreen() {
         label={statusLabel(subscription)}
       />
 
-      <Text style={styles.sectionTitle}>Live buses</Text>
+      <Text style={styles.sectionTitle}>{t('home.liveBuses')}</Text>
 
       {children.map((child) => {
         const route = findRoute(child.routeId)!;
@@ -41,7 +43,7 @@ export default function HomeScreen() {
               stopsAway: childStopIndex,
               etaMinutes: 0,
               phase: 'not_started' as const,
-              label: 'Connecting…',
+              label: t('home.connecting'),
             };
 
         return (
@@ -54,14 +56,14 @@ export default function HomeScreen() {
       {children.length === 0 && (
         <View style={styles.empty}>
           <Ionicons name="bus-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.emptyText}>No children yet. Add your first to start tracking.</Text>
+          <Text style={styles.emptyText}>{t('home.empty')}</Text>
         </View>
       )}
 
       <Link href="/add-child" asChild>
         <Pressable style={styles.addButton}>
           <Ionicons name="add" size={20} color={colors.primary} />
-          <Text style={styles.addButtonText}>Add child</Text>
+          <Text style={styles.addButtonText}>{t('home.addChild')}</Text>
         </Pressable>
       </Link>
     </ScrollView>
@@ -75,6 +77,7 @@ function SubscriptionBanner({
   unlocked: boolean;
   label: string;
 }) {
+  const { t } = useI18n();
   return (
     <Link href="/paywall" asChild>
       <View style={styles.banner}>
@@ -85,7 +88,7 @@ function SubscriptionBanner({
         />
         <View style={{ flex: 1 }}>
           <Text style={styles.bannerTitle}>
-            {unlocked ? 'Tracking active' : 'Tracking locked'}
+            {unlocked ? t('home.trackingActive') : t('home.trackingLocked')}
           </Text>
           <Text style={styles.bannerSub}>{label}</Text>
         </View>

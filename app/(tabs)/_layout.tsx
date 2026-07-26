@@ -2,9 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
+import { useI18n } from '@/i18n/I18nContext';
 import { colors } from '@/theme/theme';
 
 export default function TabsLayout() {
+  const { t } = useI18n();
   return (
     <Tabs
       screenOptions={{
@@ -18,8 +20,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'My Children',
-          headerTitle: 'BusMapp',
+          title: t('tabs.children'),
+          headerTitle: t('app.name'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" color={color} size={size} />
           ),
@@ -28,7 +30,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="account"
         options={{
-          title: 'Account',
+          title: t('tabs.account'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle" color={color} size={size} />
           ),

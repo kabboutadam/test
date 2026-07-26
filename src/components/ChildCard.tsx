@@ -3,6 +3,8 @@ import { Link } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from '@/i18n/I18nContext';
+import { arrivalLabelKey } from '@/i18n/strings';
 import { Child } from '@/models/types';
 import { ArrivalInfo } from '@/services/stopsAway';
 import { colors, radius, spacing } from '@/theme/theme';
@@ -22,11 +24,16 @@ const phaseColor: Record<ArrivalInfo['phase'], string> = {
 };
 
 export function ChildCard({ child, routeName, arrival }: Props) {
+  const { t } = useI18n();
   const initials = child.name
     .split(' ')
     .map((p) => p[0])
     .slice(0, 2)
     .join('');
+  const { key, vars } = arrivalLabelKey(arrival);
+  const statusLabel = t(key, vars);
+  const eta =
+    arrival.etaMinutes > 0 ? `  ·  ~${arrival.etaMinutes} ${t('common.min')}` : '';
 
   return (
     <Link href={`/track/${child.id}`} asChild>
@@ -50,8 +57,8 @@ export function ChildCard({ child, routeName, arrival }: Props) {
             <Text
               style={[styles.status, { color: phaseColor[arrival.phase] }]}
             >
-              {arrival.label}
-              {arrival.etaMinutes > 0 ? `  ·  ~${arrival.etaMinutes} min` : ''}
+              {statusLabel}
+              {eta}
             </Text>
           </View>
         </View>

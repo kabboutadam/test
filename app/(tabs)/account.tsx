@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { config } from '@/api/config';
+import { useI18n } from '@/i18n/I18nContext';
 import { entitles, statusLabel } from '@/services/subscription';
 import { useApp } from '@/store/AppContext';
 import { useAuth } from '@/store/AuthContext';
@@ -15,6 +16,7 @@ export default function AccountScreen() {
   const { parent, children, subscription, resetSimulation, positionMode } =
     useApp();
   const { signOut } = useAuth();
+  const { t, lang, setLang } = useI18n();
   const { enabled: notifyEnabled, setEnabled: setNotifyEnabled } =
     useNotifications();
   const insets = useSafeAreaInsets();
@@ -41,7 +43,21 @@ export default function AccountScreen() {
         <Text style={styles.meta}>{parent.phone}</Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Subscription</Text>
+      <Text style={styles.sectionTitle}>{t('account.language')}</Text>
+      <View style={styles.langRow}>
+        <LangOption
+          label="English"
+          active={lang === 'en'}
+          onPress={() => setLang('en')}
+        />
+        <LangOption
+          label="العربية"
+          active={lang === 'ar'}
+          onPress={() => setLang('ar')}
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>{t('account.subscription')}</Text>
       <Link href="/paywall" asChild>
         <Pressable style={styles.row}>
           <Ionicons
@@ -50,14 +66,16 @@ export default function AccountScreen() {
             color={entitles(subscription) ? colors.success : colors.warning}
           />
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Manage plan</Text>
+            <Text style={styles.rowTitle}>{t('account.managePlan')}</Text>
             <Text style={styles.rowSub}>{statusLabel(subscription)}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Pressable>
       </Link>
 
-      <Text style={styles.sectionTitle}>Children ({children.length})</Text>
+      <Text style={styles.sectionTitle}>
+        {t('account.children', { n: children.length })}
+      </Text>
       {children.map((c) => (
         <Link key={c.id} href={{ pathname: '/add-child', params: { childId: c.id } }} asChild>
           <Pressable style={styles.row}>
@@ -74,19 +92,19 @@ export default function AccountScreen() {
         <Pressable style={styles.row}>
           <Ionicons name="add-circle" size={20} color={colors.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: colors.primary }]}>Add child</Text>
+            <Text style={[styles.rowTitle, { color: colors.primary }]}>
+              {t('home.addChild')}
+            </Text>
           </View>
         </Pressable>
       </Link>
 
-      <Text style={styles.sectionTitle}>Notifications</Text>
+      <Text style={styles.sectionTitle}>{t('account.notifications')}</Text>
       <View style={styles.row}>
         <Ionicons name="notifications" size={20} color={colors.primary} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>Bus approach alerts</Text>
-          <Text style={styles.rowSub}>
-            Get notified at 3 stops, 1 stop, and arriving
-          </Text>
+          <Text style={styles.rowTitle}>{t('account.approachAlerts')}</Text>
+          <Text style={styles.rowSub}>{t('account.approachAlertsSub')}</Text>
         </View>
         <Switch
           value={notifyEnabled}
@@ -95,15 +113,15 @@ export default function AccountScreen() {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Demo controls</Text>
+      <Text style={styles.sectionTitle}>{t('account.demoControls')}</Text>
       <Pressable style={styles.row} onPress={resetSimulation}>
         <Ionicons name="refresh" size={20} color={colors.primary} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>Restart bus simulation</Text>
+          <Text style={styles.rowTitle}>{t('account.restartSim')}</Text>
           <Text style={styles.rowSub}>
             {positionMode === 'backend'
               ? 'Positions come from the backend (server owns the sim)'
-              : 'Send both buses back to their first stop'}
+              : t('account.restartSimSub')}
           </Text>
         </View>
       </Pressable>
@@ -112,8 +130,8 @@ export default function AccountScreen() {
         <Pressable style={styles.row}>
           <Ionicons name="bus" size={20} color={colors.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Driver mode</Text>
-            <Text style={styles.rowSub}>Stream this bus’s location to parents</Text>
+            <Text style={styles.rowTitle}>{t('account.driverMode')}</Text>
+            <Text style={styles.rowSub}>{t('account.driverModeSub')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Pressable>
@@ -123,11 +141,34 @@ export default function AccountScreen() {
         <Pressable style={styles.row} onPress={signOut}>
           <Ionicons name="log-out-outline" size={20} color={colors.danger} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: colors.danger }]}>Sign out</Text>
+            <Text style={[styles.rowTitle, { color: colors.danger }]}>
+              {t('account.signOut')}
+            </Text>
           </View>
         </Pressable>
       )}
     </ScrollView>
+  );
+}
+
+function LangOption({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[styles.langOption, active && styles.langOptionActive]}
+      onPress={onPress}
+    >
+      <Text style={[styles.langText, active && styles.langTextActive]}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -173,4 +214,17 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
   rowSub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   dot: { width: 20, height: 20, borderRadius: 10 },
+  langRow: { flexDirection: 'row', gap: spacing.sm },
+  langOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  langOptionActive: { borderColor: colors.primary },
+  langText: { fontSize: 16, color: colors.text, fontWeight: '600' },
+  langTextActive: { color: colors.primary, fontWeight: '800' },
 });

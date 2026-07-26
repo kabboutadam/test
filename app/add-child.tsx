@@ -21,11 +21,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { routes as allRoutes, schools } from '@/data/mockData';
+import { useI18n } from '@/i18n/I18nContext';
 import { useApp } from '@/store/AppContext';
 import { colors, radius, spacing } from '@/theme/theme';
 
 export default function AddChildScreen() {
   const { addChild, updateChild, removeChild, children } = useApp();
+  const { t } = useI18n();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -71,24 +73,28 @@ export default function AddChildScreen() {
       }
       router.back();
     } catch {
-      setError('Could not save — is the server reachable?');
+      setError(t('addChild.saveError'));
       setBusy(false);
     }
   }
 
   function confirmRemove() {
     if (!editing) return;
-    Alert.alert('Remove child', `Remove ${editing.name} from tracking?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          await removeChild(editing.id);
-          router.back();
+    Alert.alert(
+      t('addChild.removeChild'),
+      t('addChild.removeConfirm', { name: editing.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.remove'),
+          style: 'destructive',
+          onPress: async () => {
+            await removeChild(editing.id);
+            router.back();
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   return (
@@ -96,9 +102,11 @@ export default function AddChildScreen() {
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
     >
-      <Text style={styles.title}>{editing ? 'Edit child' : 'Add a child'}</Text>
+      <Text style={styles.title}>
+        {editing ? t('addChild.editTitle') : t('addChild.addTitle')}
+      </Text>
 
-      <Text style={styles.label}>School</Text>
+      <Text style={styles.label}>{t('addChild.school')}</Text>
       {schools.map((s) => (
         <SelectRow
           key={s.id}
@@ -114,7 +122,7 @@ export default function AddChildScreen() {
 
       {schoolId && (
         <>
-          <Text style={styles.label}>Route</Text>
+          <Text style={styles.label}>{t('addChild.route')}</Text>
           {schoolRoutes.map((r) => (
             <SelectRow
               key={r.id}
@@ -131,7 +139,7 @@ export default function AddChildScreen() {
 
       {routeId && (
         <>
-          <Text style={styles.label}>Pickup stop</Text>
+          <Text style={styles.label}>{t('addChild.pickupStop')}</Text>
           {stops.map((st) => (
             <SelectRow
               key={st.id}
@@ -143,19 +151,19 @@ export default function AddChildScreen() {
         </>
       )}
 
-      <Text style={styles.label}>Child</Text>
+      <Text style={styles.label}>{t('addChild.child')}</Text>
       <TextInput
         style={styles.input}
         value={name}
         onChangeText={setName}
-        placeholder="Full name"
+        placeholder={t('addChild.fullName')}
         editable={!busy}
       />
       <TextInput
         style={styles.input}
         value={grade}
         onChangeText={setGrade}
-        placeholder="Grade (e.g. Grade 3)"
+        placeholder={t('addChild.grade')}
         editable={!busy}
       />
 
@@ -169,14 +177,16 @@ export default function AddChildScreen() {
         {busy ? (
           <ActivityIndicator color={colors.onPrimary} />
         ) : (
-          <Text style={styles.ctaText}>{editing ? 'Save changes' : 'Add child'}</Text>
+          <Text style={styles.ctaText}>
+            {editing ? t('common.save') : t('addChild.add')}
+          </Text>
         )}
       </Pressable>
 
       {editing && !busy && (
         <Pressable style={styles.remove} onPress={confirmRemove}>
           <Ionicons name="trash-outline" size={18} color={colors.danger} />
-          <Text style={styles.removeText}>Remove child</Text>
+          <Text style={styles.removeText}>{t('addChild.removeChild')}</Text>
         </Pressable>
       )}
     </ScrollView>
