@@ -25,11 +25,17 @@ export interface Stop {
   scheduledTime: string;
 }
 
+export type RouteSession = 'morning' | 'afternoon';
+
 export interface Route {
   id: string;
   name: string;
   schoolId: string;
   stops: Stop[];
+  /** Morning pickup or afternoon drop-off. Defaults to morning when absent. */
+  session?: RouteSession;
+  /** On a morning route, the id of its afternoon counterpart. */
+  afternoonRouteId?: string;
 }
 
 export interface Bus {

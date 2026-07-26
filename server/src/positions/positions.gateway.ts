@@ -122,9 +122,15 @@ export class PositionsGateway implements OnGatewayInit, OnGatewayConnection {
   }
 
   private parentRoutes(parentId: string): Set<string> {
-    return new Set(
-      this.fleet.getChildrenForParent(parentId).map((c) => c.routeId),
-    );
+    // A parent may track each child's morning route and its afternoon drop-off
+    // counterpart (same bus, reverse direction).
+    const ids = new Set<string>();
+    for (const child of this.fleet.getChildrenForParent(parentId)) {
+      ids.add(child.routeId);
+      const afternoon = this.fleet.getRoute(child.routeId)?.afternoonRouteId;
+      if (afternoon) ids.add(afternoon);
+    }
+    return ids;
   }
 
   private deny(client: Socket, reason: string): void {

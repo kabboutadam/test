@@ -11,11 +11,13 @@ export const schools: School[] = [
   { id: 'sch_2', name: 'Mount Lebanon School', location: { latitude: 33.9808, longitude: 35.6178 } },
 ];
 
-export const routes: Route[] = [
+const morningRoutes: Route[] = [
   {
     id: 'route_a',
     name: 'Route A — Achrafieh Morning',
     schoolId: 'sch_1',
+    session: 'morning',
+    afternoonRouteId: 'route_a_pm',
     stops: [
       { id: 'a0', name: 'Sassine Square, Achrafieh', order: 0, location: { latitude: 33.8869, longitude: 35.5197 }, travelMinutesFromPrev: 0, scheduledTime: '06:50' },
       { id: 'a1', name: 'Mar Mikhael', order: 1, location: { latitude: 33.8959, longitude: 35.5225 }, travelMinutesFromPrev: 5, scheduledTime: '06:55' },
@@ -30,6 +32,8 @@ export const routes: Route[] = [
     id: 'route_b',
     name: 'Route B — Hamra Morning',
     schoolId: 'sch_1',
+    session: 'morning',
+    afternoonRouteId: 'route_b_pm',
     stops: [
       { id: 'b0', name: 'Manara Corniche', order: 0, location: { latitude: 33.8992, longitude: 35.4757 }, travelMinutesFromPrev: 0, scheduledTime: '06:55' },
       { id: 'b1', name: 'Hamra Street', order: 1, location: { latitude: 33.8967, longitude: 35.4808 }, travelMinutesFromPrev: 5, scheduledTime: '07:00' },
@@ -43,6 +47,8 @@ export const routes: Route[] = [
     id: 'route_c',
     name: 'Route C — Jounieh Morning',
     schoolId: 'sch_2',
+    session: 'morning',
+    afternoonRouteId: 'route_c_pm',
     stops: [
       { id: 'c0', name: 'Jounieh, Old Souk', order: 0, location: { latitude: 33.9808, longitude: 35.6178 }, travelMinutesFromPrev: 0, scheduledTime: '06:45' },
       { id: 'c1', name: 'Kaslik', order: 1, location: { latitude: 33.9736, longitude: 35.6144 }, travelMinutesFromPrev: 5, scheduledTime: '06:50' },
@@ -52,6 +58,56 @@ export const routes: Route[] = [
     ],
   },
 ];
+
+/**
+ * Build an afternoon drop-off route from a morning pickup route: same bus and
+ * driver, reversed — the school becomes the first stop and children are dropped
+ * at the same neighborhoods they boarded from. Kept identical to the mobile
+ * app's generator (src/data/mockData.ts) so both sides agree on ids, ordering,
+ * and stop counts (positions travel by index).
+ */
+function buildAfternoonRoute(
+  morning: Route,
+  opts: { id: string; name: string; startTime: string },
+): Route {
+  const reversed = [...morning.stops].reverse();
+  const n = morning.stops.length;
+  let clock = parseHm(opts.startTime);
+
+  const stops = reversed.map((stop, idx) => {
+    const travel = idx === 0 ? 0 : morning.stops[n - idx].travelMinutesFromPrev;
+    clock += travel;
+    return {
+      id: `${opts.id}_${idx}`,
+      name: stop.name,
+      order: idx,
+      location: stop.location,
+      travelMinutesFromPrev: travel,
+      scheduledTime: formatHm(clock),
+    };
+  });
+
+  return { id: opts.id, name: opts.name, schoolId: morning.schoolId, session: 'afternoon', stops };
+}
+
+function parseHm(hm: string): number {
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function formatHm(mins: number): string {
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+const afternoonRoutes: Route[] = [
+  buildAfternoonRoute(morningRoutes[0], { id: 'route_a_pm', name: 'Route A — Achrafieh Afternoon', startTime: '14:15' }),
+  buildAfternoonRoute(morningRoutes[1], { id: 'route_b_pm', name: 'Route B — Hamra Afternoon', startTime: '14:15' }),
+  buildAfternoonRoute(morningRoutes[2], { id: 'route_c_pm', name: 'Route C — Jounieh Afternoon', startTime: '14:00' }),
+];
+
+export const routes: Route[] = [...morningRoutes, ...afternoonRoutes];
 
 export const buses: Bus[] = [
   { id: 'bus_a', plateNumber: 'B 123456', routeId: 'route_a', driverName: 'Elie Karam', driverPhone: '+961 3 000 111', capacity: 24 },
