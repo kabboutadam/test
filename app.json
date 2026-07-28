@@ -2,7 +2,7 @@
   "expo": {
     "name": "BusMapp",
     "slug": "busmapp",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "busmapp",
     "userInterfaceStyle": "light",
@@ -10,6 +10,9 @@
     "icon": "./assets/icon.png",
     "runtimeVersion": {
       "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/00f7a40f-842a-4d37-a330-95d445d20e77"
     },
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -55,7 +58,10 @@
     },
     "extra": {
       "useBackend": false,
-      "apiBaseUrl": "http://localhost:3000"
+      "apiBaseUrl": "http://localhost:3000",
+      "eas": {
+        "projectId": "00f7a40f-842a-4d37-a330-95d445d20e77"
+      }
     }
   }
 }

@@ -23,16 +23,11 @@ they need an interactive Apple login (2FA) and Expo's build servers.
       eas login
       ```
 
-## 1. Link the project to EAS (one time)
+## 1. Link the project to EAS (one time — already done)
 
-From the repo root:
-
-```bash
-eas init
-```
-
-This creates an EAS project and writes its `projectId` into `app.json`
-(`expo.extra.eas.projectId`, currently a placeholder). Commit that change.
+The project is linked: `app.json` carries the real `projectId`
+(`expo.extra.eas.projectId`) and the matching `updates.url`. If you ever move
+this to a different EAS account, re-run `eas init` and update both values.
 
 ## 2. iOS signing credentials
 
@@ -80,13 +75,14 @@ Testers install the **TestFlight** app from the App Store, then open your invite
 
 ## 5. Shipping updates
 
-**EAS Update is already wired** (`expo-updates` installed; `app.json` has
-`runtimeVersion` + `updates.url`; `eas.json` build profiles have channels
-`development`/`preview`/`production`). One-time, after `eas init`:
+**EAS Update is wired and ready** (`expo-updates` installed; `app.json` has
+`runtimeVersion` + a real `updates.url`; `eas.json` build profiles have channels
+`development`/`preview`/`production`). No further setup needed.
 
-```bash
-eas update:configure     # finalizes updates.url with your real projectId
-```
+> **Important:** OTA only reaches a build that was **compiled with `updates.url`
+> present.** Builds 1–9 predate this, so they can't receive OTA — the first
+> OTA-capable binary is **build 10 (v0.2.0)**. Once testers are on build 10,
+> JS-only changes reach them over the air.
 
 - **JS-only changes** (most of this app — screens, logic, styles): push instantly
   to installed TestFlight builds, no rebuild, no re-review:
@@ -121,6 +117,19 @@ dashboard) instead of the built-in simulator:
 
 ## Troubleshooting
 
+- **`eas submit` prints "Something went wrong when submitting your app to Apple
+  App Store Connect" — but the build still appears in TestFlight.** Seen with the
+  current App Store Connect API key: it can *upload* the binary but can't *read
+  submission status back*, so the CLI reports failure after a successful upload.
+  **Don't rebuild — check App Store Connect → TestFlight first.** If the build is
+  there, it worked; just handle "Missing Compliance" (answer No to encryption)
+  and assign it to your testers. To silence the error for good, give the key the
+  **App Manager** role (App Store Connect → Users and Access → Integrations).
+- **`eas submit` fails and the build is genuinely missing:** resubmitting the
+  *same* build number won't work if Apple already has it. Cut a fresh build
+  (`autoIncrement` bumps the number) and submit that.
+- **New build doesn't include your latest changes:** the build runs from your
+  local working copy — `git pull` the branch on your Mac before `eas build`.
 - **Build fails on `react-native-maps` with the New Architecture:** as a
   fallback set `expo.newArchEnabled = false` in `app.json` and rebuild.
 - **"Invalid bundle identifier / already exists":** pick a unique
