@@ -45,3 +45,18 @@ export const CurrentOperator = createParamDecorator(
     return { operatorId: user.operatorId, schoolId: user.schoolId };
   },
 );
+
+/**
+ * Asserts the caller is a platform super-admin. Use on /platform endpoints so
+ * only the platform owner can create schools or provision school logins.
+ */
+export const CurrentSuperadmin = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): { phone: string } => {
+    const request = ctx.switchToHttp().getRequest<{ user: AuthUser }>();
+    const user = request.user;
+    if (user.role !== 'superadmin') {
+      throw new ForbiddenException('Platform admin account required');
+    }
+    return { phone: user.phone };
+  },
+);

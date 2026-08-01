@@ -69,6 +69,7 @@ export class MeController {
       name: body.name.trim(),
       grade: body.grade?.trim() || '—',
       parentId,
+      schoolId: route.schoolId,
       routeId: body.routeId,
       stopId: body.stopId,
       color:
@@ -117,9 +118,26 @@ export class MeController {
     return { ok: true };
   }
 
+  /**
+   * Access is sold per school (school pays, families track free): a parent is
+   * entitled whenever any of their children's schools has active/trial access.
+   * The app reads this the same as before — no client change needed.
+   */
   @Get('subscription')
-  getSubscription(@CurrentParent() parentId: string): Promise<Subscription> {
-    return this.subs.getForParent(parentId);
+  getSubscription(@CurrentParent() parentId: string): Subscription {
+    const kids = this.fleet.getChildrenForParent(parentId);
+    const entitledSchools = [...new Set(kids.map((c) => c.schoolId))]
+      .map((id) => this.fleet.getSchool(id))
+      .filter((s): s is NonNullable<typeof s> => !!s && this.fleet.isSchoolEntitled(s.id));
+
+    if (entitledSchools.length === 0) {
+      return { parentId, status: 'none', plan: null, renewsAt: null };
+    }
+    // Surface the soonest upcoming renewal across the covering schools.
+    const renewsAt = entitledSchools
+      .map((s) => s.renewsAt)
+      .filter((d): d is string => !!d)
+      .sort()[0] ?? null;
+    return { parentId, status: 'active', plan: null, renewsAt };
   }
-  // Subscriptions activate only through a confirmed payment — see /me/billing.
 }

@@ -11,7 +11,13 @@ const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   for (const school of schools) {
-    const data = { name: school.name, lat: school.location.latitude, lng: school.location.longitude };
+    const data = {
+      name: school.name,
+      lat: school.location.latitude,
+      lng: school.location.longitude,
+      subscriptionStatus: school.subscriptionStatus,
+      renewsAt: school.renewsAt,
+    };
     await prisma.school.upsert({
       where: { id: school.id },
       update: data,
@@ -81,7 +87,9 @@ async function main(): Promise<void> {
       name: child.name,
       grade: child.grade,
       color: child.color,
+      address: child.address ?? null,
       parentId: child.parentId,
+      schoolId: child.schoolId,
       routeId: child.routeId,
       stopId: child.stopId,
     };

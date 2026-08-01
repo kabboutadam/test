@@ -12,12 +12,16 @@ datasource db {
 }
 
 model School {
-  id        String     @id
-  name      String
-  lat       Float
-  lng       Float
-  routes    Route[]
-  operators Operator[]
+  id                 String     @id
+  name               String
+  lat                Float
+  lng                Float
+  // Platform access is sold per school (school pays, families track free).
+  subscriptionStatus String     @default("none") // 'trial' | 'active' | 'expired' | 'none'
+  renewsAt           String?
+  routes             Route[]
+  operators          Operator[]
+  children           Child[]
 }
 
 model Operator {
@@ -73,16 +77,22 @@ model Parent {
 }
 
 model Child {
-  id       String @id
+  id       String  @id
   name     String
   grade    String
   color    String
-  parent   Parent @relation(fields: [parentId], references: [id])
+  address  String?
+  parent   Parent  @relation(fields: [parentId], references: [id])
   parentId String
-  route    Route  @relation(fields: [routeId], references: [id])
+  // Tenant boundary: every read/write is scoped by schoolId.
+  school   School  @relation(fields: [schoolId], references: [id])
+  schoolId String
+  route    Route   @relation(fields: [routeId], references: [id])
   routeId  String
-  stop     Stop   @relation(fields: [stopId], references: [id])
+  stop     Stop    @relation(fields: [stopId], references: [id])
   stopId   String
+
+  @@index([schoolId])
 }
 
 model Subscription {

@@ -87,6 +87,16 @@ export class PositionsGateway implements OnGatewayInit, OnGatewayConnection {
       return { ok: false };
     }
 
+    // School pays for access: if the route's school isn't entitled, tracking is
+    // locked for its families even though the parent owns the route.
+    const school = this.fleet.getSchoolForRoute(body.routeId);
+    if (!school || !this.fleet.isSchoolEntitled(school.id)) {
+      this.logger.warn(
+        `Parent ${user.parentId} denied subscribe to ${body.routeId}: school access inactive`,
+      );
+      return { ok: false };
+    }
+
     client.join(room(body.routeId));
     const current = this.positions.getForRoute(body.routeId);
     if (current) client.emit('position', current);

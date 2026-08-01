@@ -8,12 +8,15 @@ import { FleetRepository } from './fleet.repository';
  * the seed module (and never alias FleetService's cache).
  */
 export class MemoryFleetRepository implements FleetRepository {
+  private readonly schoolRows: School[] = [...schools];
   private readonly routeRows: Route[] = [...routes];
   private readonly busRows: Bus[] = [...buses];
   private readonly childRows: Child[] = [...children];
+  private readonly operatorRows: Operator[] = [...operators];
+  private readonly parentRows: Parent[] = parents.map((p) => ({ ...p, childIds: [...p.childIds] }));
 
   async loadSchools(): Promise<School[]> {
-    return schools;
+    return this.schoolRows;
   }
   async loadRoutes(): Promise<Route[]> {
     return this.routeRows;
@@ -22,10 +25,10 @@ export class MemoryFleetRepository implements FleetRepository {
     return this.busRows;
   }
   async loadParents(): Promise<Parent[]> {
-    return parents;
+    return this.parentRows;
   }
   async loadOperators(): Promise<Operator[]> {
-    return operators;
+    return this.operatorRows;
   }
   async loadChildren(): Promise<Child[]> {
     return this.childRows;
@@ -45,11 +48,28 @@ export class MemoryFleetRepository implements FleetRepository {
   async addRoute(route: Route): Promise<void> {
     this.routeRows.push(route);
   }
+  async updateRoute(route: Route): Promise<void> {
+    const i = this.routeRows.findIndex((r) => r.id === route.id);
+    if (i >= 0) this.routeRows[i] = route;
+  }
   async addBus(bus: Bus): Promise<void> {
     this.busRows.push(bus);
   }
   async updateBus(bus: Bus): Promise<void> {
     const i = this.busRows.findIndex((b) => b.id === bus.id);
     if (i >= 0) this.busRows[i] = bus;
+  }
+  async addSchool(school: School): Promise<void> {
+    this.schoolRows.push(school);
+  }
+  async updateSchool(school: School): Promise<void> {
+    const i = this.schoolRows.findIndex((s) => s.id === school.id);
+    if (i >= 0) this.schoolRows[i] = school;
+  }
+  async addOperator(operator: Operator): Promise<void> {
+    this.operatorRows.push(operator);
+  }
+  async addParent(parent: Parent): Promise<void> {
+    this.parentRows.push(parent);
   }
 }

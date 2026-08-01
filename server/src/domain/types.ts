@@ -14,6 +14,10 @@ export interface School {
   id: string;
   name: string;
   location: LatLng;
+  /** Platform access is sold per school: when active/trial, its families can
+   * track; when expired/none, tracking is locked for all of them. */
+  subscriptionStatus: SubscriptionStatus;
+  renewsAt: string | null;
 }
 
 export interface Stop {
@@ -52,8 +56,14 @@ export interface Child {
   name: string;
   grade: string;
   parentId: string;
+  /** The school that owns this child's record — the tenant boundary. Every
+   * read/write is scoped by this so no school can see another's kids. */
+  schoolId: string;
   routeId: string;
+  /** The child's pickup stop on the route (created from their home pin). */
   stopId: string;
+  /** Human-readable home address label shown next to the pin. */
+  address?: string;
   color: string;
 }
 

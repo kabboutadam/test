@@ -13,6 +13,8 @@ export class PrismaFleetRepository implements FleetRepository {
       id: s.id,
       name: s.name,
       location: { latitude: s.lat, longitude: s.lng },
+      subscriptionStatus: s.subscriptionStatus as School['subscriptionStatus'],
+      renewsAt: s.renewsAt,
     }));
   }
 
@@ -77,8 +79,10 @@ export class PrismaFleetRepository implements FleetRepository {
       name: c.name,
       grade: c.grade,
       parentId: c.parentId,
+      schoolId: c.schoolId,
       routeId: c.routeId,
       stopId: c.stopId,
+      address: c.address ?? undefined,
       color: c.color,
     }));
   }
@@ -90,7 +94,9 @@ export class PrismaFleetRepository implements FleetRepository {
         name: child.name,
         grade: child.grade,
         color: child.color,
+        address: child.address ?? null,
         parentId: child.parentId,
+        schoolId: child.schoolId,
         routeId: child.routeId,
         stopId: child.stopId,
       },
@@ -104,6 +110,7 @@ export class PrismaFleetRepository implements FleetRepository {
         name: child.name,
         grade: child.grade,
         color: child.color,
+        address: child.address ?? null,
         routeId: child.routeId,
         stopId: child.stopId,
       },
@@ -157,6 +164,86 @@ export class PrismaFleetRepository implements FleetRepository {
         driverPhone: bus.driverPhone,
         capacity: bus.capacity,
         routeId: bus.routeId,
+      },
+    });
+  }
+
+  /**
+   * Persist a route's stops. Upserts each stop (a child's pin adds/moves one);
+   * stops are never deleted here, so a removed child's FK stays valid.
+   */
+  async updateRoute(route: Route): Promise<void> {
+    await this.prisma.$transaction(
+      route.stops.map((s) =>
+        this.prisma.stop.upsert({
+          where: { id: s.id },
+          create: {
+            id: s.id,
+            name: s.name,
+            order: s.order,
+            lat: s.location.latitude,
+            lng: s.location.longitude,
+            travelMinutesFromPrev: s.travelMinutesFromPrev,
+            scheduledTime: s.scheduledTime,
+            routeId: route.id,
+          },
+          update: {
+            name: s.name,
+            order: s.order,
+            lat: s.location.latitude,
+            lng: s.location.longitude,
+            travelMinutesFromPrev: s.travelMinutesFromPrev,
+            scheduledTime: s.scheduledTime,
+          },
+        }),
+      ),
+    );
+  }
+
+  async addSchool(school: School): Promise<void> {
+    await this.prisma.school.create({
+      data: {
+        id: school.id,
+        name: school.name,
+        lat: school.location.latitude,
+        lng: school.location.longitude,
+        subscriptionStatus: school.subscriptionStatus,
+        renewsAt: school.renewsAt,
+      },
+    });
+  }
+
+  async updateSchool(school: School): Promise<void> {
+    await this.prisma.school.update({
+      where: { id: school.id },
+      data: {
+        name: school.name,
+        lat: school.location.latitude,
+        lng: school.location.longitude,
+        subscriptionStatus: school.subscriptionStatus,
+        renewsAt: school.renewsAt,
+      },
+    });
+  }
+
+  async addOperator(operator: Operator): Promise<void> {
+    await this.prisma.operator.create({
+      data: {
+        id: operator.id,
+        name: operator.name,
+        phone: operator.phone,
+        schoolId: operator.schoolId,
+      },
+    });
+  }
+
+  async addParent(parent: Parent): Promise<void> {
+    await this.prisma.parent.create({
+      data: {
+        id: parent.id,
+        name: parent.name,
+        email: parent.email,
+        phone: parent.phone,
       },
     });
   }

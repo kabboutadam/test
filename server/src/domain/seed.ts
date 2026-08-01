@@ -7,8 +7,8 @@
 import { Bus, Child, Operator, Parent, Route, School, Subscription } from './types';
 
 export const schools: School[] = [
-  { id: 'sch_1', name: 'Beirut International College', location: { latitude: 33.8886, longitude: 35.4955 } },
-  { id: 'sch_2', name: 'Mount Lebanon School', location: { latitude: 33.9808, longitude: 35.6178 } },
+  { id: 'sch_1', name: 'Beirut International College', location: { latitude: 33.8886, longitude: 35.4955 }, subscriptionStatus: 'active', renewsAt: '2027-01-01' },
+  { id: 'sch_2', name: 'Mount Lebanon School', location: { latitude: 33.9808, longitude: 35.6178 }, subscriptionStatus: 'trial', renewsAt: '2026-09-01' },
 ];
 
 const morningRoutes: Route[] = [
@@ -125,8 +125,8 @@ export const operators: Operator[] = [
 ];
 
 export const children: Child[] = [
-  { id: 'child_1', name: 'Maya Khalil', grade: 'Grade 4', parentId: 'parent_1', routeId: 'route_a', stopId: 'a3', color: '#0B6E4F' },
-  { id: 'child_2', name: 'Karim Khalil', grade: 'Grade 1', parentId: 'parent_1', routeId: 'route_b', stopId: 'b2', color: '#C1440E' },
+  { id: 'child_1', name: 'Maya Khalil', grade: 'Grade 4', parentId: 'parent_1', schoolId: 'sch_1', routeId: 'route_a', stopId: 'a3', address: 'Downtown, Martyrs Square', color: '#0B6E4F' },
+  { id: 'child_2', name: 'Karim Khalil', grade: 'Grade 1', parentId: 'parent_1', schoolId: 'sch_1', routeId: 'route_b', stopId: 'b2', address: 'Verdun, Dunes Center', color: '#C1440E' },
 ];
 
 export const subscriptions: Subscription[] = [

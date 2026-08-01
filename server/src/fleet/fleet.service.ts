@@ -45,6 +45,18 @@ export class FleetService implements OnModuleInit {
     return this.schoolsCache.find((s) => s.id === id);
   }
 
+  /** True when a school's platform access is live, so its families may track. */
+  isSchoolEntitled(schoolId: string): boolean {
+    const school = this.getSchool(schoolId);
+    return school?.subscriptionStatus === 'active' || school?.subscriptionStatus === 'trial';
+  }
+
+  /** The school a route belongs to (tenant of everything on that route). */
+  getSchoolForRoute(routeId: string): School | undefined {
+    const route = this.getRoute(routeId);
+    return route ? this.getSchool(route.schoolId) : undefined;
+  }
+
   getOperatorByPhone(phone: string): Operator | undefined {
     const target = normalizePhone(phone);
     return this.operatorsCache.find((o) => normalizePhone(o.phone) === target);
@@ -96,8 +108,17 @@ export class FleetService implements OnModuleInit {
     return this.childrenCache.filter((c) => c.routeId === routeId);
   }
 
+  /** All children owned by a school — the tenant-scoped list for its operator. */
+  getChildrenForSchool(schoolId: string): Child[] {
+    return this.childrenCache.filter((c) => c.schoolId === schoolId);
+  }
+
   getChild(id: string): Child | undefined {
     return this.childrenCache.find((c) => c.id === id);
+  }
+
+  getOperators(): Operator[] {
+    return this.operatorsCache;
   }
 
   /** Onboard a child: persist it and update the in-memory cache. */
@@ -132,6 +153,50 @@ export class FleetService implements OnModuleInit {
     await this.repo.addRoute(route);
     this.routesCache.push(route);
     return route;
+  }
+
+  /** Persist a route whose stop list changed (a child pin added/moved a stop). */
+  async updateRoute(route: Route): Promise<Route> {
+    await this.repo.updateRoute(route);
+    const i = this.routesCache.findIndex((r) => r.id === route.id);
+    if (i >= 0) this.routesCache[i] = route;
+    return route;
+  }
+
+  async addSchool(school: School): Promise<School> {
+    await this.repo.addSchool(school);
+    this.schoolsCache.push(school);
+    return school;
+  }
+
+  async updateSchool(school: School): Promise<School> {
+    await this.repo.updateSchool(school);
+    const i = this.schoolsCache.findIndex((s) => s.id === school.id);
+    if (i >= 0) this.schoolsCache[i] = school;
+    return school;
+  }
+
+  async addOperator(operator: Operator): Promise<Operator> {
+    await this.repo.addOperator(operator);
+    this.operatorsCache.push(operator);
+    return operator;
+  }
+
+  /** Find a parent by phone, creating a bare record if none exists yet. Used
+   * when a school onboards a child under a parent who hasn't signed up. */
+  async findOrCreateParentByPhone(phone: string, name?: string): Promise<Parent> {
+    const existing = this.getParentByPhone(phone);
+    if (existing) return existing;
+    const parent: Parent = {
+      id: `parent_${normalizePhone(phone).replace(/\D/g, '').slice(-9) || Date.now()}`,
+      name: name?.trim() || 'Parent',
+      email: '',
+      phone: normalizePhone(phone),
+      childIds: [],
+    };
+    await this.repo.addParent(parent);
+    this.parentsCache.push(parent);
+    return parent;
   }
 
   async addBus(bus: Bus): Promise<Bus> {

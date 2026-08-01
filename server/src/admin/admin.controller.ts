@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   NotFoundException,
@@ -14,7 +15,8 @@ import { randomUUID } from 'crypto';
 
 import { CurrentOperator, OperatorContext } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Bus, Route, Stop } from '../domain/types';
+import { normalizePhone } from '../domain/phone';
+import { Bus, Child, Route, Stop } from '../domain/types';
 import { FleetService } from '../fleet/fleet.service';
 import { PositionsService } from '../positions/positions.service';
 
@@ -42,6 +44,27 @@ interface UpdateBusBody {
   driverPhone?: string;
   capacity?: number;
 }
+interface AddChildBody {
+  name: string;
+  grade?: string;
+  routeId: string;
+  latitude: number;
+  longitude: number;
+  address?: string;
+  scheduledTime?: string;
+  parentPhone: string;
+  parentName?: string;
+}
+interface UpdateChildBody {
+  name?: string;
+  grade?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  scheduledTime?: string;
+}
+
+const CHILD_COLORS = ['#0B6E4F', '#C1440E', '#2A6F97', '#8E44AD', '#B7791F'];
 
 /** Operator dashboard API. Everything is scoped to the operator's school. */
 @UseGuards(JwtAuthGuard)
@@ -188,4 +211,140 @@ export class AdminController {
       capacity: body.capacity ?? bus.capacity,
     });
   }
+
+  // --- Children (each school manages only its own kids) ---
+
+  /** Load a child and assert it belongs to this operator's school. */
+  private ownedChild(id: string, op: OperatorContext): Child {
+    const child = this.fleet.getChild(id);
+    if (!child) throw new NotFoundException('child not found');
+    if (child.schoolId !== op.schoolId) {
+      throw new ForbiddenException('child belongs to another school');
+    }
+    return child;
+  }
+
+  @Get('children')
+  listChildren(@CurrentOperator() op: OperatorContext) {
+    return this.fleet.getChildrenForSchool(op.schoolId).map((c) => {
+      const route = this.fleet.getRoute(c.routeId);
+      const stop = route?.stops.find((s) => s.id === c.stopId);
+      const parent = this.fleet.getParent(c.parentId);
+      return {
+        id: c.id,
+        name: c.name,
+        grade: c.grade,
+        address: c.address ?? null,
+        routeId: c.routeId,
+        routeName: route?.name ?? null,
+        location: stop?.location ?? null,
+        scheduledTime: stop?.scheduledTime ?? null,
+        parentPhone: parent?.phone ?? null,
+        parentName: parent?.name ?? null,
+      };
+    });
+  }
+
+  @Post('children')
+  async addChild(
+    @CurrentOperator() op: OperatorContext,
+    @Body() body: AddChildBody,
+  ): Promise<Child> {
+    if (!body?.name?.trim()) throw new BadRequestException('name is required');
+    if (typeof body.latitude !== 'number' || typeof body.longitude !== 'number') {
+      throw new BadRequestException('a pickup pin (latitude, longitude) is required');
+    }
+    if (!body.parentPhone?.trim()) {
+      throw new BadRequestException('parentPhone is required so the parent can log in');
+    }
+    const route = this.ownedRoute(body.routeId, op);
+
+    // The child's home pin becomes a pickup stop, inserted before the route's
+    // final stop (its destination — typically the school).
+    const stop: Stop = {
+      id: `${route.id}_s${randomUUID().slice(0, 6)}`,
+      name: body.address?.trim() || body.name.trim(),
+      order: 0, // set by reindex below
+      location: { latitude: body.latitude, longitude: body.longitude },
+      travelMinutesFromPrev: 5,
+      scheduledTime: body.scheduledTime?.trim() || '',
+    };
+    const insertAt = Math.max(0, route.stops.length - 1);
+    const stops = [...route.stops];
+    stops.splice(insertAt, 0, stop);
+    await this.fleet.updateRoute({ ...route, stops: reindex(stops) });
+    this.positions.registerRoute(route.id);
+
+    const parent = await this.fleet.findOrCreateParentByPhone(
+      body.parentPhone,
+      body.parentName,
+    );
+
+    return this.fleet.addChild({
+      id: `child_${randomUUID().slice(0, 8)}`,
+      name: body.name.trim(),
+      grade: body.grade?.trim() || '—',
+      parentId: parent.id,
+      schoolId: op.schoolId,
+      routeId: route.id,
+      stopId: stop.id,
+      address: body.address?.trim() || undefined,
+      color: CHILD_COLORS[this.fleet.getChildrenForSchool(op.schoolId).length % CHILD_COLORS.length],
+    });
+  }
+
+  @Patch('children/:id')
+  async updateChild(
+    @CurrentOperator() op: OperatorContext,
+    @Param('id') id: string,
+    @Body() body: UpdateChildBody,
+  ): Promise<Child> {
+    const child = this.ownedChild(id, op);
+    const route = this.fleet.getRoute(child.routeId);
+
+    // Move the pickup pin if new coordinates are given.
+    if (
+      route &&
+      typeof body.latitude === 'number' &&
+      typeof body.longitude === 'number'
+    ) {
+      const stops = route.stops.map((s) =>
+        s.id === child.stopId
+          ? {
+              ...s,
+              location: { latitude: body.latitude!, longitude: body.longitude! },
+              name: body.address?.trim() || s.name,
+              scheduledTime: body.scheduledTime?.trim() || s.scheduledTime,
+            }
+          : s,
+      );
+      await this.fleet.updateRoute({ ...route, stops });
+    }
+
+    return this.fleet.updateChild({
+      ...child,
+      name: body.name?.trim() || child.name,
+      grade: body.grade?.trim() || child.grade,
+      address: body.address?.trim() ?? child.address,
+    });
+  }
+
+  @Delete('children/:id')
+  async removeChild(
+    @CurrentOperator() op: OperatorContext,
+    @Param('id') id: string,
+  ): Promise<{ ok: boolean }> {
+    this.ownedChild(id, op); // authorize before removing
+    await this.fleet.removeChild(id);
+    return { ok: true };
+  }
+}
+
+/** Renumber a stop list so order === index and the first hop has 0 travel. */
+function reindex(stops: Stop[]): Stop[] {
+  return stops.map((s, i) => ({
+    ...s,
+    order: i,
+    travelMinutesFromPrev: i === 0 ? 0 : s.travelMinutesFromPrev || 5,
+  }));
 }

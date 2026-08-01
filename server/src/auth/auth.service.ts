@@ -22,7 +22,8 @@ interface OtpEntry {
 export type AuthUser =
   | { role: 'parent'; parentId: string; phone: string }
   | { role: 'driver'; busId: string; routeId: string; phone: string }
-  | { role: 'operator'; operatorId: string; schoolId: string; phone: string };
+  | { role: 'operator'; operatorId: string; schoolId: string; phone: string }
+  | { role: 'superadmin'; phone: string };
 
 export interface VerifyResult {
   token: string;
@@ -30,6 +31,21 @@ export interface VerifyResult {
   parentId?: string;
   routeId?: string;
   schoolId?: string;
+}
+
+/**
+ * Platform owners (super-admins) are identified by phone via the
+ * SUPERADMIN_PHONES env var (comma-separated). They are the only ones who can
+ * create schools and provision school logins — deliberately kept out of the
+ * fleet data so a compromised DB can't mint one.
+ */
+function superadminPhones(): Set<string> {
+  return new Set(
+    (process.env.SUPERADMIN_PHONES ?? '')
+      .split(',')
+      .map((p) => normalizePhone(p.trim()))
+      .filter((p) => p.length > 0),
+  );
 }
 
 const OTP_TTL_MS = 5 * 60 * 1000;
@@ -55,6 +71,7 @@ export class AuthService {
   async requestOtp(phone: string): Promise<{ sent: boolean; devCode?: string }> {
     const normalized = normalizePhone(phone);
     const known =
+      superadminPhones().has(normalized) ||
       this.fleet.getParentByPhone(normalized) ||
       this.fleet.getBusByDriverPhone(normalized) ||
       this.fleet.getOperatorByPhone(normalized);
@@ -82,6 +99,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired code');
     }
     this.otps.delete(normalized);
+
+    // Super-admin wins over any fleet role so the platform owner always gets in.
+    if (superadminPhones().has(normalized)) {
+      const payload: AuthUser = { role: 'superadmin', phone: normalized };
+      return { token: await this.jwt.signAsync(payload), role: 'superadmin' };
+    }
 
     const parent = this.fleet.getParentByPhone(normalized);
     if (parent) {

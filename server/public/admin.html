@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>BusMapp — Operator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
       :root {
         --primary: #0b6e4f;
@@ -91,6 +93,11 @@
       .msg.ok { color: var(--primary); }
       .msg.err { color: var(--danger); }
       .link-btn { background: none; padding: 0; color: var(--primary); font-size: 12px; font-weight: 700; }
+      .children-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 760px) { .children-grid { grid-template-columns: 1fr; } }
+      #childMap { height: 240px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 10px; }
+      .pin-hint { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+      .del-btn { background: none; color: var(--danger); padding: 0; font-size: 12px; font-weight: 700; }
     </style>
   </head>
   <body>
@@ -145,6 +152,30 @@
             <textarea id="routeStops" rows="5" placeholder="One stop per line:&#10;Name, lat, lng, HH:MM, minutesFromPrev&#10;AUB Main Gate, 33.900, 35.480, 07:00, 0&#10;Bliss Street, 33.898, 35.482, 07:05, 5"></textarea>
             <button id="addRouteBtn" class="btn-primary">Add route</button>
             <div id="routeMsg" class="msg"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+          <h3 style="margin:0 0 12px">Children</h3>
+          <div class="children-grid">
+            <div>
+              <table>
+                <thead><tr><th>Name</th><th>Route</th><th>Pickup</th><th>Parent</th><th></th></tr></thead>
+                <tbody id="childRows"><tr><td colspan="5" class="src">No children yet.</td></tr></tbody>
+              </table>
+            </div>
+            <div>
+              <h3 style="font-size:14px">Add a child</h3>
+              <input id="cName" placeholder="Child full name" />
+              <input id="cGrade" placeholder="Grade (e.g. Grade 3)" />
+              <select id="cRoute"></select>
+              <input id="cParent" placeholder="Parent phone (their login)" inputmode="tel" />
+              <input id="cAddress" placeholder="Home address (label)" />
+              <div id="childMap"></div>
+              <div class="pin-hint">Tap the map to drop the pickup pin. <span id="cPin">no pin yet</span></div>
+              <button id="addChildBtn" class="btn-primary">Add child</button>
+              <div id="childMsg" class="msg"></div>
+            </div>
           </div>
         </div>
       </main>
@@ -216,6 +247,8 @@
         $('login').classList.add('hidden');
         $('app').classList.remove('hidden');
         $('schoolName').textContent = overview.school ? overview.school.name : 'School';
+        initChildMap();
+        await loadChildren();
         await tick();
         timer = setInterval(tick, 2000);
       }
@@ -232,8 +265,84 @@
           .filter((x) => !x.busId)
           .map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>')
           .join('') || '<option value="">(every route has a bus)</option>';
+        // Children can go on any route.
+        $('cRoute').innerHTML = overview.routes
+          .map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>')
+          .join('') || '<option value="">(add a route first)</option>';
         return true;
       }
+
+      // --- Children (pin-based pickup) ---
+      let childMap = null, childMarker = null, pin = null;
+      function initChildMap() {
+        if (childMap) { setTimeout(() => childMap.invalidateSize(), 100); return; }
+        const c = overview.school ? [overview.school.location.latitude, overview.school.location.longitude] : [33.8886, 35.4955];
+        childMap = L.map('childMap').setView(c, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '© OpenStreetMap',
+        }).addTo(childMap);
+        childMap.on('click', (e) => setPin(e.latlng.lat, e.latlng.lng));
+        setTimeout(() => childMap.invalidateSize(), 200);
+      }
+      function setPin(lat, lng) {
+        pin = { lat, lng };
+        if (childMarker) childMarker.setLatLng([lat, lng]);
+        else childMarker = L.marker([lat, lng]).addTo(childMap);
+        $('cPin').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+      }
+
+      async function loadChildren() {
+        const r = await api('/admin/children');
+        if (!r.ok) return;
+        const kids = await r.json();
+        $('childRows').innerHTML = kids.length
+          ? kids.map((c) =>
+              '<tr>' +
+              td('<strong>' + esc(c.name) + '</strong><div class="src">' + esc(c.grade || '') + '</div>') +
+              td(esc(c.routeName || '—')) +
+              td('<div class="src">' + esc(c.address || (c.location ? c.location.latitude.toFixed(4) + ', ' + c.location.longitude.toFixed(4) : '—')) + '</div>') +
+              td('<div class="src">' + esc(c.parentPhone || '—') + '</div>') +
+              td('<button class="del-btn" data-del="' + c.id + '">remove</button>') +
+              '</tr>'
+            ).join('')
+          : '<tr><td colspan="5" class="src">No children yet.</td></tr>';
+      }
+
+      $('addChildBtn').onclick = async () => {
+        setMsg('childMsg', '', '');
+        if (!pin) return setMsg('childMsg', 'Tap the map to drop a pickup pin first.', 'err');
+        const r = await api('/admin/children', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: $('cName').value,
+            grade: $('cGrade').value,
+            routeId: $('cRoute').value,
+            parentPhone: $('cParent').value,
+            address: $('cAddress').value,
+            latitude: pin.lat,
+            longitude: pin.lng,
+          }),
+        });
+        if (r.ok) {
+          setMsg('childMsg', 'Child added.', 'ok');
+          $('cName').value = $('cGrade').value = $('cParent').value = $('cAddress').value = '';
+          pin = null; $('cPin').textContent = 'no pin yet';
+          if (childMarker) { childMap.removeLayer(childMarker); childMarker = null; }
+          await refreshOverview();
+          await loadChildren();
+        } else {
+          setMsg('childMsg', (await r.json()).message || 'Failed', 'err');
+        }
+      };
+
+      $('childRows').addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-del]');
+        if (!btn) return;
+        if (!confirm('Remove this child?')) return;
+        const r = await api('/admin/children/' + btn.dataset.del, { method: 'DELETE' });
+        if (r.ok) { await refreshOverview(); await loadChildren(); }
+        else alert('Remove failed');
+      });
 
       // Edit a bus's driver (delegated click on the table).
       $('rows').addEventListener('click', async (e) => {
