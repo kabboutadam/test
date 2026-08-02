@@ -171,8 +171,12 @@
               <select id="cRoute"></select>
               <input id="cParent" placeholder="Parent phone (their login)" inputmode="tel" />
               <input id="cAddress" placeholder="Home address (label)" />
+              <div style="display:flex;gap:8px;margin-bottom:8px">
+                <input id="childSearch" placeholder="Search a place (e.g. Sagesse Achrafieh)" style="flex:1;margin:0;text-align:left" />
+                <button id="childSearchBtn" class="btn-primary" style="padding:10px 16px">Find</button>
+              </div>
               <div id="childMap"></div>
-              <div class="pin-hint">Tap the map to drop the pickup pin. <span id="cPin">no pin yet</span></div>
+              <div class="pin-hint">Search to jump there, then tap to fine-tune the pin. <span id="cPin">no pin yet</span></div>
               <button id="addChildBtn" class="btn-primary">Add child</button>
               <div id="childMsg" class="msg"></div>
             </div>
@@ -195,8 +199,12 @@
           <div class="children-grid">
             <div>
               <input id="sName" placeholder="School name" />
+              <div style="display:flex;gap:8px;margin-bottom:8px">
+                <input id="schoolSearch" placeholder="Search a place (e.g. Tripoli, Zgharta)" style="flex:1;margin:0;text-align:left" />
+                <button id="schoolSearchBtn" class="btn-primary" style="padding:10px 16px">Find</button>
+              </div>
               <div id="schoolMap"></div>
-              <div class="pin-hint">Tap the map to place the school. <span id="sPin">no pin yet</span></div>
+              <div class="pin-hint">Search to jump there, then tap to place the school. <span id="sPin">no pin yet</span></div>
               <button id="addSchoolBtn" class="btn-primary">Create school (14-day trial)</button>
               <div id="schoolMsg" class="msg"></div>
             </div>
@@ -378,6 +386,24 @@
         else alert('Remove failed');
       });
 
+      // Free geocoder (OpenStreetMap) — jumps the map near a typed place; the
+      // exact pin is still set by tapping. Scoped to Lebanon.
+      async function geocodeLb(q) {
+        if (!q || !q.trim()) return null;
+        try {
+          const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=lb&q=' + encodeURIComponent(q.trim()), { headers: { Accept: 'application/json' } });
+          const a = await r.json();
+          if (a && a[0]) return { lat: parseFloat(a[0].lat), lng: parseFloat(a[0].lon) };
+        } catch (e) { /* offline */ }
+        return null;
+      }
+      $('childSearchBtn').onclick = async () => {
+        const hit = await geocodeLb($('childSearch').value);
+        if (!hit) return setMsg('childMsg', 'Place not found — try a nearby landmark.', 'err');
+        childMap.setView([hit.lat, hit.lng], 16);
+        setPin(hit.lat, hit.lng);
+      };
+
       // Edit a bus's driver (delegated click on the table).
       $('rows').addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-edit]');
@@ -539,6 +565,15 @@
         } else {
           setMsg('schoolMsg', (await r.json()).message || 'Failed', 'err');
         }
+      };
+      $('schoolSearchBtn').onclick = async () => {
+        const hit = await geocodeLb($('schoolSearch').value);
+        if (!hit) return setMsg('schoolMsg', 'Place not found — try a nearby landmark.', 'err');
+        schoolMap.setView([hit.lat, hit.lng], 16);
+        schoolPin = { lat: hit.lat, lng: hit.lng };
+        if (schoolMarker) schoolMarker.setLatLng([hit.lat, hit.lng]);
+        else schoolMarker = L.marker([hit.lat, hit.lng]).addTo(schoolMap);
+        $('sPin').textContent = hit.lat.toFixed(5) + ', ' + hit.lng.toFixed(5);
       };
       $('schoolList').addEventListener('click', async (e) => {
         const opBtn = e.target.closest('[data-op]');
