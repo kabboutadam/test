@@ -5,7 +5,7 @@
  * route and parent are fixed once created (re-add to change them).
  */
 
-import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -54,11 +54,9 @@ export default function SchoolAddChild() {
   const { childId } = useLocalSearchParams<{ childId?: string }>();
   const editing = !!childId;
 
-  const [routes, setRoutes] = useState<api.AdminOverview['routes']>([]);
   const [region, setRegion] = useState<Region>(BEIRUT);
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
-  const [routeId, setRouteId] = useState<string | null>(null);
   const [parentPhone, setParentPhone] = useState('');
   const [address, setAddress] = useState('');
   const [pin, setPin] = useState<Pin | null>(null);
@@ -96,7 +94,6 @@ export default function SchoolAddChild() {
     (async () => {
       try {
         const overview = await api.adminOverview(token);
-        setRoutes(overview.routes);
         if (overview.school) {
           setRegion({ ...overview.school.location, latitudeDelta: 0.05, longitudeDelta: 0.05 });
         }
@@ -106,7 +103,6 @@ export default function SchoolAddChild() {
           if (child) {
             setName(child.name);
             setGrade(child.grade === '—' ? '' : child.grade);
-            setRouteId(child.routeId);
             setParentPhone(child.parentPhone ?? '');
             setAddress(child.address ?? '');
             if (child.location) {
@@ -122,8 +118,8 @@ export default function SchoolAddChild() {
   }, [token, editing, childId]);
 
   const canSubmit = useMemo(
-    () => !!name.trim() && !!pin && !busy && (editing || (!!routeId && !!parentPhone.trim())),
-    [name, pin, busy, editing, routeId, parentPhone],
+    () => !!name.trim() && !!pin && !busy && (editing || !!parentPhone.trim()),
+    [name, pin, busy, editing, parentPhone],
   );
 
   async function submit() {
@@ -140,11 +136,10 @@ export default function SchoolAddChild() {
           longitude: pin.longitude,
         });
       } else {
-        if (!routeId) throw new Error('route');
+        // No route to pick — the child joins the school's pickup list.
         await api.adminAddChild(token, {
           name: name.trim(),
           grade: grade.trim(),
-          routeId,
           parentPhone: parentPhone.trim(),
           address: address.trim() || undefined,
           latitude: pin.latitude,
@@ -180,32 +175,11 @@ export default function SchoolAddChild() {
 
       {editing ? (
         <>
-          <Text style={styles.label}>Route</Text>
-          <Text style={styles.readonly}>{routes.find((r) => r.id === routeId)?.name ?? '—'}</Text>
           <Text style={styles.label}>Parent phone</Text>
           <Text style={styles.readonly}>{parentPhone || '—'}</Text>
         </>
       ) : (
         <>
-          <Text style={styles.label}>Route</Text>
-          {routes.length === 0 ? (
-            <Link href="/school/add-route" asChild>
-              <Pressable style={styles.newRouteBtn}>
-                <Text style={styles.newRouteText}>+ Create your first route</Text>
-              </Pressable>
-            </Link>
-          ) : (
-            routes.map((r) => (
-              <Pressable
-                key={r.id}
-                style={[styles.selectRow, routeId === r.id && styles.selectRowActive]}
-                onPress={() => setRouteId(r.id)}
-              >
-                <Text style={[styles.selectText, routeId === r.id && styles.selectTextActive]}>{r.name}</Text>
-              </Pressable>
-            ))
-          )}
-
           <Text style={styles.label}>Parent phone (their login)</Text>
           <TextInput
             style={styles.input}

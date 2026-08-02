@@ -131,6 +131,20 @@ async function run() {
   })).data;
   check('child added to a name-only route', simpleChild?.id?.startsWith('child_'));
 
+  // Add a child with NO route — auto-joins the school's pickup list.
+  const autoChild = (await api('/admin/children', {
+    method: 'POST', token: opA,
+    body: { name: 'Rana', latitude: 34.442, longitude: 35.833, parentPhone: '+961 76 666 666' },
+  })).data;
+  check('child added with no route (auto pickup list)', autoChild?.id?.startsWith('child_') && !!autoChild.routeId);
+
+  // Arrange the pickup order and compute times.
+  const schedule = (await api('/admin/arrange', {
+    method: 'POST', token: opA,
+    body: { childIds: [autoChild.id, childA.id], schoolArrival: '07:30' },
+  })).data;
+  check('arrange returns computed pickup times', Array.isArray(schedule) && schedule.length >= 1 && /^\d{2}:\d{2}$/.test(schedule[0].scheduledTime));
+
   // --- Isolation between schools ---
   const aKids = (await api('/admin/children', { token: opA })).data;
   check('operator A sees its own kids', Array.isArray(aKids) && aKids.some((c) => c.id === childA.id));

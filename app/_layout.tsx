@@ -85,10 +85,7 @@ function RootStack() {
         name="school/add-child"
         options={{ title: 'Add child', presentation: 'modal' }}
       />
-      <Stack.Screen
-        name="school/add-route"
-        options={{ title: 'New route', presentation: 'modal' }}
-      />
+      <Stack.Screen name="school/arrange" options={{ title: 'Pickup order & times' }} />
       <Stack.Screen
         name="track/[childId]"
         options={{ title: t('track.title'), presentation: 'card' }}

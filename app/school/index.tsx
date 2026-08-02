@@ -27,7 +27,6 @@ export default function SchoolHome() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [schoolName, setSchoolName] = useState('School');
-  const [routes, setRoutes] = useState<api.AdminOverview['routes']>([]);
   const [children, setChildren] = useState<api.AdminChild[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +38,6 @@ export default function SchoolHome() {
         api.adminListChildren(token),
       ]);
       setSchoolName(overview.school?.name ?? 'School');
-      setRoutes(overview.routes);
       setChildren(kids);
     } catch (err) {
       if (err instanceof api.ApiError && err.status === 401) await signOut();
@@ -95,30 +93,15 @@ export default function SchoolHome() {
             contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
             ListHeaderComponent={
               <View style={{ marginBottom: spacing.sm }}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.sectionTitle}>Routes ({routes.length})</Text>
-                  <Link href="/school/add-route" asChild>
-                    <Pressable style={styles.newBtn}>
-                      <Ionicons name="add" size={16} color={colors.primary} />
-                      <Text style={styles.newBtnText}>New route</Text>
+                {children.length > 0 && (
+                  <Link href="/school/arrange" asChild>
+                    <Pressable style={styles.arrangeBtn}>
+                      <Ionicons name="swap-vertical" size={18} color={colors.onPrimary} />
+                      <Text style={styles.arrangeText}>Arrange order & pickup times</Text>
                     </Pressable>
                   </Link>
-                </View>
-                {routes.length === 0 ? (
-                  <Text style={styles.hintSmall}>No routes yet — it's just a name to create one.</Text>
-                ) : (
-                  <View style={styles.chips}>
-                    {routes.map((r) => (
-                      <View key={r.id} style={styles.chip}>
-                        <Text style={styles.chipName} numberOfLines={1}>{r.name}</Text>
-                        <Text style={styles.chipMeta}>
-                          {r.childCount} kid{r.childCount === 1 ? '' : 's'}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
                 )}
-                <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>
+                <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>
                   Children ({children.length})
                 </Text>
               </View>
@@ -139,10 +122,12 @@ export default function SchoolHome() {
                   <Ionicons name="location" size={18} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>{item.name}</Text>
+                  <Text style={styles.rowTitle}>
+                    {item.order + 1}. {item.name}
+                    {item.scheduledTime ? `  ·  ${item.scheduledTime}` : ''}
+                  </Text>
                   <Text style={styles.rowSub} numberOfLines={1}>
-                    {item.routeName ?? '—'}
-                    {item.address ? ` · ${item.address}` : ''}
+                    {item.address ?? 'Tap to set home pin'}
                   </Text>
                   <Text style={styles.rowMeta} numberOfLines={1}>
                     {item.grade || '—'}
@@ -188,6 +173,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  arrangeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+  },
+  arrangeText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
   rowBetween: {
     flexDirection: 'row',
     alignItems: 'center',

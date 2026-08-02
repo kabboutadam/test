@@ -69,7 +69,7 @@ export interface AdminChild {
   grade: string;
   address: string | null;
   routeId: string;
-  routeName: string | null;
+  order: number;
   location: { latitude: number; longitude: number } | null;
   scheduledTime: string | null;
   parentPhone: string | null;
@@ -79,12 +79,27 @@ export interface AdminChild {
 export interface AdminNewChild {
   name: string;
   grade?: string;
-  routeId: string;
+  /** Optional — omit and the child joins the school's pickup list automatically. */
+  routeId?: string;
   latitude: number;
   longitude: number;
   address?: string;
   parentPhone: string;
   parentName?: string;
+}
+
+export interface ArrangeInput {
+  childIds: string[];
+  schoolArrival?: string;
+  avgSpeedKmh?: number;
+  dwellMin?: number;
+}
+
+export interface ArrangedChild {
+  childId: string;
+  name: string;
+  order: number;
+  scheduledTime: string;
 }
 
 export interface AdminChildPatch {
@@ -126,6 +141,11 @@ export function adminUpdateChild(
 
 export function adminRemoveChild(token: string, id: string): Promise<{ ok: boolean }> {
   return request(`/admin/children/${id}`, { method: 'DELETE', token });
+}
+
+/** Set the pickup order and compute each child's time (back from arrival). */
+export function adminArrange(token: string, body: ArrangeInput): Promise<ArrangedChild[]> {
+  return request('/admin/arrange', { method: 'POST', body, token });
 }
 
 // --- Parent data (guarded) ---

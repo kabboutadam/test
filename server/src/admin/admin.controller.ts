@@ -15,6 +15,7 @@ import { randomUUID } from 'crypto';
 
 import { CurrentOperator, OperatorContext } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { distanceKm } from '../domain/geo';
 import { normalizePhone } from '../domain/phone';
 import { Bus, Child, Route, Stop } from '../domain/types';
 import { FleetService } from '../fleet/fleet.service';
@@ -49,7 +50,8 @@ interface UpdateBusBody {
 interface AddChildBody {
   name: string;
   grade?: string;
-  routeId: string;
+  /** Optional — omit and the child joins the school's pickup list automatically. */
+  routeId?: string;
   latitude: number;
   longitude: number;
   address?: string;
@@ -65,8 +67,27 @@ interface UpdateChildBody {
   longitude?: number;
   scheduledTime?: string;
 }
+interface ArrangeBody {
+  /** Child ids in pickup order (first picked up → last before school). */
+  childIds: string[];
+  /** "HH:MM" the bus should reach school by. Defaults to 07:30. */
+  schoolArrival?: string;
+  /** Average city speed for distance-based ETA (km/h). Defaults to 20. */
+  avgSpeedKmh?: number;
+  /** Minutes the bus waits at each pickup. Defaults to 1. */
+  dwellMin?: number;
+}
 
 const CHILD_COLORS = ['#0B6E4F', '#C1440E', '#2A6F97', '#8E44AD', '#B7791F'];
+
+function parseHm(hm: string): number {
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
+}
+function formatHm(mins: number): string {
+  const t = (((Math.round(mins) % 1440) + 1440) % 1440);
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
 
 /** Operator dashboard API. Everything is scoped to the operator's school. */
 @UseGuards(JwtAuthGuard)
@@ -241,25 +262,54 @@ export class AdminController {
     return child;
   }
 
+  /** The school's single pickup route, created on demand (school as destination)
+   * so the school never has to think about "routes" — just kids. */
+  private async schoolRoute(op: OperatorContext): Promise<Route> {
+    const existing = this.fleet.getRoutesForSchool(op.schoolId)[0];
+    if (existing) return existing;
+    const school = this.fleet.getSchool(op.schoolId);
+    const routeId = `route_${randomUUID().slice(0, 8)}`;
+    const route = await this.fleet.addRoute({
+      id: routeId,
+      name: 'Pickup route',
+      schoolId: op.schoolId,
+      stops: [
+        {
+          id: `${routeId}_s0`,
+          name: school?.name ?? 'School',
+          order: 0,
+          location: school?.location ?? { latitude: 0, longitude: 0 },
+          travelMinutesFromPrev: 0,
+          scheduledTime: '',
+        },
+      ],
+    });
+    this.positions.registerRoute(route.id);
+    return route;
+  }
+
   @Get('children')
   listChildren(@CurrentOperator() op: OperatorContext) {
-    return this.fleet.getChildrenForSchool(op.schoolId).map((c) => {
-      const route = this.fleet.getRoute(c.routeId);
-      const stop = route?.stops.find((s) => s.id === c.stopId);
-      const parent = this.fleet.getParent(c.parentId);
-      return {
-        id: c.id,
-        name: c.name,
-        grade: c.grade,
-        address: c.address ?? null,
-        routeId: c.routeId,
-        routeName: route?.name ?? null,
-        location: stop?.location ?? null,
-        scheduledTime: stop?.scheduledTime ?? null,
-        parentPhone: parent?.phone ?? null,
-        parentName: parent?.name ?? null,
-      };
-    });
+    return this.fleet
+      .getChildrenForSchool(op.schoolId)
+      .map((c) => {
+        const route = this.fleet.getRoute(c.routeId);
+        const stop = route?.stops.find((s) => s.id === c.stopId);
+        const parent = this.fleet.getParent(c.parentId);
+        return {
+          id: c.id,
+          name: c.name,
+          grade: c.grade,
+          address: c.address ?? null,
+          routeId: c.routeId,
+          order: stop?.order ?? 0,
+          location: stop?.location ?? null,
+          scheduledTime: stop?.scheduledTime || null,
+          parentPhone: parent?.phone ?? null,
+          parentName: parent?.name ?? null,
+        };
+      })
+      .sort((a, b) => a.order - b.order);
   }
 
   @Post('children')
@@ -274,7 +324,10 @@ export class AdminController {
     if (!body.parentPhone?.trim()) {
       throw new BadRequestException('parentPhone is required so the parent can log in');
     }
-    const route = this.ownedRoute(body.routeId, op);
+    // Route is automatic: the school's pickup route (created on first child).
+    const route = body.routeId
+      ? this.ownedRoute(body.routeId, op)
+      : await this.schoolRoute(op);
 
     // The child's home pin becomes a pickup stop, inserted before the route's
     // final stop (its destination — typically the school).
@@ -354,6 +407,75 @@ export class AdminController {
     this.ownedChild(id, op); // authorize before removing
     await this.fleet.removeChild(id);
     return { ok: true };
+  }
+
+  /**
+   * Arrange the school's kids into a pickup order and compute each one's time.
+   * Reorders the route's pickup stops to `childIds`, estimates travel between
+   * homes from straight-line distance / avg speed, and works backward from the
+   * school-arrival time to give every child a pickup time.
+   */
+  @Post('arrange')
+  async arrange(@CurrentOperator() op: OperatorContext, @Body() body: ArrangeBody) {
+    const route = this.fleet.getRoutesForSchool(op.schoolId)[0];
+    if (!route) throw new NotFoundException('no pickup route yet — add a child first');
+
+    const speed = body.avgSpeedKmh && body.avgSpeedKmh > 0 ? body.avgSpeedKmh : 20;
+    const dwell = body.dwellMin != null && body.dwellMin >= 0 ? body.dwellMin : 1;
+    const arrival =
+      body.schoolArrival && /^\d{1,2}:\d{2}$/.test(body.schoolArrival)
+        ? body.schoolArrival
+        : '07:30';
+
+    const kids = this.fleet
+      .getChildrenForSchool(op.schoolId)
+      .filter((c) => c.routeId === route.id);
+    const stopById = new Map(route.stops.map((s) => [s.id, s]));
+    const childStopIds = new Set(kids.map((c) => c.stopId));
+    const stopForChild = new Map(kids.map((c) => [c.id, stopById.get(c.stopId)]));
+
+    // Pickups in the requested order, then the destination (school) last.
+    const pickups: Stop[] = [];
+    for (const id of body.childIds) {
+      const s = stopForChild.get(id);
+      if (s) pickups.push(s);
+    }
+    const destination = route.stops.filter((s) => !childStopIds.has(s.id));
+    const ordered = [...pickups, ...destination];
+    if (ordered.length < 2) throw new BadRequestException('need at least one child');
+
+    // Distance-based travel between consecutive stops.
+    const withTravel = ordered.map((s, i) => ({
+      ...s,
+      order: i,
+      travelMinutesFromPrev:
+        i === 0
+          ? 0
+          : Math.max(1, Math.round((distanceKm(ordered[i - 1].location, s.location) / speed) * 60)),
+    }));
+
+    // Total trip time (travel + a dwell at each stop we depart), then back-fill
+    // times so the last stop lands exactly on the school-arrival time.
+    let total = 0;
+    for (let i = 1; i < withTravel.length; i++) {
+      total += dwell + withTravel[i].travelMinutesFromPrev;
+    }
+    const startMin = parseHm(arrival) - total;
+    let acc = startMin;
+    const timed = withTravel.map((s, i) => {
+      if (i > 0) acc += dwell + s.travelMinutesFromPrev;
+      return { ...s, scheduledTime: formatHm(acc) };
+    });
+
+    await this.fleet.updateRoute({ ...route, stops: timed });
+
+    // Report each child's computed pickup time in order.
+    return kids
+      .map((c) => {
+        const s = timed.find((t) => t.id === c.stopId);
+        return { childId: c.id, name: c.name, order: s?.order ?? 0, scheduledTime: s?.scheduledTime ?? '' };
+      })
+      .sort((a, b) => a.order - b.order);
   }
 }
 
