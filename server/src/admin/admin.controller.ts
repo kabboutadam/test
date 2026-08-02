@@ -29,7 +29,9 @@ interface StopInput {
 }
 interface CreateRouteBody {
   name: string;
-  stops: StopInput[];
+  /** Optional. Omit for the simple app flow — the school is auto-set as the
+   * destination and each child's pin fills in the pickup stops. */
+  stops?: StopInput[];
 }
 interface CreateBusBody {
   plateNumber: string;
@@ -143,24 +145,39 @@ export class AdminController {
     @Body() body: CreateRouteBody,
   ): Promise<Route> {
     if (!body?.name?.trim()) throw new BadRequestException('name is required');
-    if (!Array.isArray(body.stops) || body.stops.length < 2) {
-      throw new BadRequestException('a route needs at least 2 stops');
-    }
 
     const routeId = `route_${randomUUID().slice(0, 8)}`;
-    const stops: Stop[] = body.stops.map((s, i) => {
-      if (!s?.name?.trim() || typeof s.latitude !== 'number' || typeof s.longitude !== 'number') {
-        throw new BadRequestException(`stop ${i + 1} needs name, latitude, longitude`);
-      }
-      return {
-        id: `${routeId}_s${i}`,
-        name: s.name.trim(),
-        order: i,
-        location: { latitude: s.latitude, longitude: s.longitude },
-        travelMinutesFromPrev: i === 0 ? 0 : Math.max(0, s.travelMinutesFromPrev ?? 5),
-        scheduledTime: s.scheduledTime ?? '',
-      };
-    });
+    let stops: Stop[];
+    if (Array.isArray(body.stops) && body.stops.length > 0) {
+      // Full definition (web dashboard): explicit stops with coordinates.
+      stops = body.stops.map((s, i) => {
+        if (!s?.name?.trim() || typeof s.latitude !== 'number' || typeof s.longitude !== 'number') {
+          throw new BadRequestException(`stop ${i + 1} needs name, latitude, longitude`);
+        }
+        return {
+          id: `${routeId}_s${i}`,
+          name: s.name.trim(),
+          order: i,
+          location: { latitude: s.latitude, longitude: s.longitude },
+          travelMinutesFromPrev: i === 0 ? 0 : Math.max(0, s.travelMinutesFromPrev ?? 5),
+          scheduledTime: s.scheduledTime ?? '',
+        };
+      });
+    } else {
+      // Simple app flow: name only. Seed the school as the destination stop;
+      // each child added later inserts their pickup pin before it.
+      const school = this.fleet.getSchool(op.schoolId);
+      stops = [
+        {
+          id: `${routeId}_s0`,
+          name: school?.name ?? 'School',
+          order: 0,
+          location: school?.location ?? { latitude: 0, longitude: 0 },
+          travelMinutesFromPrev: 0,
+          scheduledTime: '',
+        },
+      ];
+    }
 
     const route = await this.fleet.addRoute({
       id: routeId,

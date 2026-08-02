@@ -120,13 +120,24 @@ async function run() {
   check('operator A added a child', childA?.id?.startsWith('child_'));
   check('operator B added a child', childB?.id?.startsWith('child_'));
 
+  // Simple app flow: create a route with just a name (school auto-destination).
+  const simpleRoute = (await api('/admin/routes', {
+    method: 'POST', token: opA, body: { name: 'Simple Bus' },
+  })).data;
+  check('name-only route created with a destination stop', simpleRoute?.id && simpleRoute.stops?.length >= 1);
+  const simpleChild = (await api('/admin/children', {
+    method: 'POST', token: opA,
+    body: { name: 'Lea', routeId: simpleRoute.id, latitude: 34.44, longitude: 35.83, parentPhone: '+961 76 555 555' },
+  })).data;
+  check('child added to a name-only route', simpleChild?.id?.startsWith('child_'));
+
   // --- Isolation between schools ---
   const aKids = (await api('/admin/children', { token: opA })).data;
-  check('operator A sees only its own kids', Array.isArray(aKids) && aKids.length === 1 && aKids[0].id === childA.id);
+  check('operator A sees its own kids', Array.isArray(aKids) && aKids.some((c) => c.id === childA.id));
   check('operator A cannot see school B kid in its list', !aKids.some((c) => c.id === childB.id));
 
   const aOverview = (await api('/admin/overview', { token: opA })).data;
-  check('operator A overview shows only its routes', aOverview?.routes?.every((r) => r.id === routeA.id));
+  check('operator A overview excludes school B routes', aOverview?.routes?.every((r) => r.id !== routeB.id) && aOverview.routes.some((r) => r.id === routeA.id));
 
   const crossDelete = await api(`/admin/children/${childB.id}`, { method: 'DELETE', token: opA });
   check('operator A cannot delete school B child (403)', crossDelete.status === 403);

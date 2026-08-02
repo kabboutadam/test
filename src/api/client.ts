@@ -99,6 +99,15 @@ export function adminOverview(token: string): Promise<AdminOverview> {
   return request('/admin/overview', { token });
 }
 
+/** Create a route with just a name — the school is the destination and each
+ * child's pin fills in the pickup stops. */
+export function adminCreateRoute(
+  token: string,
+  name: string,
+): Promise<{ id: string; name: string }> {
+  return request('/admin/routes', { method: 'POST', body: { name }, token });
+}
+
 export function adminListChildren(token: string): Promise<AdminChild[]> {
   return request('/admin/children', { token });
 }

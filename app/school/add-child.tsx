@@ -5,7 +5,7 @@
  * route and parent are fixed once created (re-add to change them).
  */
 
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -150,7 +150,11 @@ export default function SchoolAddChild() {
         <>
           <Text style={styles.label}>Route</Text>
           {routes.length === 0 ? (
-            <Text style={styles.hint}>No routes yet. Add a route in the dashboard first.</Text>
+            <Link href="/school/add-route" asChild>
+              <Pressable style={styles.newRouteBtn}>
+                <Text style={styles.newRouteText}>+ Create your first route</Text>
+              </Pressable>
+            </Link>
           ) : (
             routes.map((r) => (
               <Pressable
@@ -255,6 +259,16 @@ const styles = StyleSheet.create({
   selectRowActive: { borderColor: colors.primary },
   selectText: { fontSize: 15, color: colors.text },
   selectTextActive: { fontWeight: '700' },
+  newRouteBtn: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  newRouteText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
   mapWrap: {
     height: 260,
     borderRadius: radius.lg,

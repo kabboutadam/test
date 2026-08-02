@@ -91,13 +91,17 @@ Schools don't need the web dashboard for day-to-day kid management. When a schoo
 operator logs into the **mobile app** with their phone, the app detects the
 `operator` role and opens the **School** area instead of the parent tabs:
 
-- a live list of the school's children;
+- a live list of the school's routes (with kid counts) and children;
+- **New route** → just type a name. The school is auto-set as the destination
+  and each child's pin fills in the pickup stops — no maps or coordinates to
+  create a route. (`POST /admin/routes` with a name only.)
 - **Add child** → name, grade, route, parent phone, address, and a **map you tap
   to drop the pickup pin** (Apple Maps on iOS) — drag to fine-tune;
-- tap a child to edit their details or move the pin; swipe/trash to remove.
+- tap a child to edit their details or move the pin; trash to remove.
 
-Routes and buses are still created on the web dashboard for now; kid enrollment
-works from either place and hits the same guarded, school-scoped API.
+A school never needs the web dashboard: routes and kids are both created from
+the phone. The dashboard remains available for bus/driver assignment and staff
+who prefer a big screen, and hits the same guarded, school-scoped API.
 
 ## Going live (this is backend work — the app is still in demo mode)
 

@@ -27,6 +27,7 @@ export default function SchoolHome() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [schoolName, setSchoolName] = useState('School');
+  const [routes, setRoutes] = useState<api.AdminOverview['routes']>([]);
   const [children, setChildren] = useState<api.AdminChild[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +39,7 @@ export default function SchoolHome() {
         api.adminListChildren(token),
       ]);
       setSchoolName(overview.school?.name ?? 'School');
+      setRoutes(overview.routes);
       setChildren(kids);
     } catch (err) {
       if (err instanceof api.ApiError && err.status === 401) await signOut();
@@ -84,10 +86,6 @@ export default function SchoolHome() {
       </View>
 
       <View style={styles.body}>
-        <View style={styles.listHeader}>
-          <Text style={styles.sectionTitle}>Children ({children.length})</Text>
-        </View>
-
         {loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
         ) : (
@@ -95,6 +93,36 @@ export default function SchoolHome() {
             data={children}
             keyExtractor={(c) => c.id}
             contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+            ListHeaderComponent={
+              <View style={{ marginBottom: spacing.sm }}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.sectionTitle}>Routes ({routes.length})</Text>
+                  <Link href="/school/add-route" asChild>
+                    <Pressable style={styles.newBtn}>
+                      <Ionicons name="add" size={16} color={colors.primary} />
+                      <Text style={styles.newBtnText}>New route</Text>
+                    </Pressable>
+                  </Link>
+                </View>
+                {routes.length === 0 ? (
+                  <Text style={styles.hintSmall}>No routes yet — it's just a name to create one.</Text>
+                ) : (
+                  <View style={styles.chips}>
+                    {routes.map((r) => (
+                      <View key={r.id} style={styles.chip}>
+                        <Text style={styles.chipName} numberOfLines={1}>{r.name}</Text>
+                        <Text style={styles.chipMeta}>
+                          {r.childCount} kid{r.childCount === 1 ? '' : 's'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>
+                  Children ({children.length})
+                </Text>
+              </View>
+            }
             ListEmptyComponent={
               <Text style={styles.empty}>
                 No children yet. Tap “Add child” to enroll your first pickup.
@@ -153,7 +181,6 @@ const styles = StyleSheet.create({
   headerLabel: { color: colors.onPrimary, fontSize: 12, opacity: 0.8 },
   headerTitle: { color: colors.onPrimary, fontSize: 20, fontWeight: '800' },
   body: { flex: 1, padding: spacing.lg },
-  listHeader: { marginBottom: spacing.sm },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
@@ -161,6 +188,35 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  newBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  newBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  hintSmall: { fontSize: 13, color: colors.textMuted },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  chipName: { fontSize: 14, fontWeight: '700', color: colors.text, maxWidth: 180 },
+  chipMeta: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   empty: {
     fontSize: 15,
     color: colors.textMuted,
