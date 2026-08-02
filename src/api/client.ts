@@ -198,6 +198,10 @@ export function fetchRoutes(): Promise<Route[]> {
   return request('/routes');
 }
 
+export function fetchRoute(id: string): Promise<Route> {
+  return request(`/routes/${id}`);
+}
+
 export function fetchSchools(): Promise<School[]> {
   return request('/schools');
 }

@@ -27,6 +27,7 @@ import {
   initialSubscription,
   parent,
   routes,
+  setRoutes,
 } from '@/data/mockData';
 import {
   Bus,
@@ -76,6 +77,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
   // Default to the run that matches the time of day; the parent can switch.
   const [session, setSession] = useState<RouteSession>(currentSession());
+  // In backend mode we must load the server's routes before tracking; in
+  // simulator mode the seed routes are ready immediately.
+  const [routesReady, setRoutesReady] = useState(!config.useBackend);
 
   // Wire up the position source. In simulator mode this runs once. In backend
   // mode it (re)connects whenever the auth token changes — the token is sent in
@@ -83,7 +87,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let source: PositionSource;
     if (config.useBackend) {
-      if (!token) return; // wait until the parent has logged in
+      if (!token || !routesReady) return; // wait for login + server routes
       source = new BackendPositionSource(routes.map((r) => r.id), token);
     } else {
       source = new BusSimulator(routes);
@@ -96,21 +100,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       source.stop();
       sourceRef.current = null;
     };
-  }, [token]);
+  }, [token, routesReady]);
 
-  // Load live children + subscription from the API in backend mode.
+  // Load live routes + children + subscription from the API in backend mode.
+  // Routes must land first (setRoutes) so lookups resolve real school routes.
   useEffect(() => {
     if (!config.useBackend || !token) return;
     let active = true;
     (async () => {
       try {
-        const [kids, sub] = await Promise.all([
+        const [serverRoutes, kids, sub] = await Promise.all([
+          api.fetchRoutes(),
           api.fetchChildren(token),
           api.fetchSubscription(token),
         ]);
         if (!active) return;
+        setRoutes(serverRoutes);
         setChildList(kids);
         setSubscription(sub);
+        setRoutesReady(true);
       } catch (err) {
         if (err instanceof api.ApiError && err.status === 401) await signOut();
       }

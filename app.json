@@ -2,7 +2,7 @@
   "expo": {
     "name": "BusMapp",
     "slug": "busmapp",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "scheme": "busmapp",
     "userInterfaceStyle": "light",
@@ -57,8 +57,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "useBackend": false,
-      "apiBaseUrl": "http://localhost:3000",
+      "useBackend": true,
+      "apiBaseUrl": "https://busmapp-api.onrender.com",
       "eas": {
         "projectId": "00f7a40f-842a-4d37-a330-95d445d20e77"
       }

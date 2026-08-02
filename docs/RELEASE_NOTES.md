@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.3.0 — live backend
+
+**This is the first build that talks to the real server** (not the built-in
+demo). `app.json` now has `useBackend: true` +
+`apiBaseUrl: https://busmapp-api.onrender.com`.
+
+- Phone-OTP login is required; each role is routed to its place — parents to
+  their kids, schools to the School area, drivers to Driver mode.
+- The app now loads **routes from the server** (not the demo seed), so real
+  schools/routes/kids created on the platform work end to end.
+- Driver mode fetches the driver's assigned route from the server and streams
+  GPS (or simulated GPS) for it.
+
+> Requires the server to be reachable. On the free Render tier the first request
+> after idle takes ~30–60s to wake — move to a paid always-on plan before real
+> families rely on it.
+
 ## 0.2.0 (build 10)
 
 **New**

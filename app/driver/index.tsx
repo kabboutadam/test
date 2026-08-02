@@ -25,7 +25,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as api from '@/api/client';
 import { config } from '@/api/config';
 import { DriverClient } from '@/api/driverClient';
-import { routes } from '@/data/mockData';
 import { LatLng, Route } from '@/models/types';
 import { lerpLatLng } from '@/services/geo';
 import { colors, radius, spacing } from '@/theme/theme';
@@ -145,8 +144,16 @@ function Streamer({
   const [streaming, setStreaming] = useState(false);
   const [pointsSent, setPointsSent] = useState(0);
   const [status, setStatus] = useState('Idle');
+  const [route, setRoute] = useState<Route | null>(null);
 
-  const route = routes.find((r) => r.id === routeId)!;
+  // Load the driver's assigned route from the server (works for real routes).
+  useEffect(() => {
+    let active = true;
+    api.fetchRoute(routeId).then((r) => active && setRoute(r)).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [routeId]);
 
   useEffect(() => {
     clientRef.current = new DriverClient();
@@ -155,6 +162,7 @@ function Streamer({
   }, []);
 
   async function start() {
+    if (!route) return;
     const client = clientRef.current!;
     client.connect(token);
     progressRef.current = 0;
@@ -201,6 +209,10 @@ function Streamer({
     clientRef.current?.disconnect();
     setStreaming(false);
     setStatus('Idle');
+  }
+
+  if (!route) {
+    return <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />;
   }
 
   return (

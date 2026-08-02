@@ -243,14 +243,18 @@ export const routeCpm = buildAfternoonRoute(routeC, {
   startTime: '14:00',
 });
 
-export const routes: Route[] = [
-  routeA,
-  routeB,
-  routeC,
-  routeApm,
-  routeBpm,
-  routeCpm,
-];
+/**
+ * The active route set. Seeded with the demo routes so simulator mode works
+ * offline; in backend mode AppContext replaces it with the live routes from the
+ * server via setRoutes(), so lookups (findRoute/routeForChild) resolve real
+ * school routes. It's a live binding, so importers see the replacement.
+ */
+export let routes: Route[] = [routeA, routeB, routeC, routeApm, routeBpm, routeCpm];
+
+/** Swap in the routes fetched from the backend (called once after login). */
+export function setRoutes(next: Route[]): void {
+  routes = next;
+}
 
 export const buses: Bus[] = [
   {
