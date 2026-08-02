@@ -45,13 +45,78 @@ export function requestOtp(phone: string): Promise<{ sent: boolean; devCode?: st
 
 export interface VerifyResult {
   token: string;
-  role: 'parent' | 'driver';
+  role: 'parent' | 'driver' | 'operator' | 'superadmin';
   parentId?: string;
   routeId?: string;
+  schoolId?: string;
 }
 
 export function verifyOtp(phone: string, code: string): Promise<VerifyResult> {
   return request('/auth/otp/verify', { method: 'POST', body: { phone, code } });
+}
+
+// --- School operator (guarded, scoped to the operator's school) ---
+
+export interface AdminOverview {
+  school: { id: string; name: string; location: { latitude: number; longitude: number } } | null;
+  routes: { id: string; name: string; stopCount: number; childCount: number; plateNumber: string | null }[];
+  totals: { routes: number; buses: number; children: number };
+}
+
+export interface AdminChild {
+  id: string;
+  name: string;
+  grade: string;
+  address: string | null;
+  routeId: string;
+  routeName: string | null;
+  location: { latitude: number; longitude: number } | null;
+  scheduledTime: string | null;
+  parentPhone: string | null;
+  parentName: string | null;
+}
+
+export interface AdminNewChild {
+  name: string;
+  grade?: string;
+  routeId: string;
+  latitude: number;
+  longitude: number;
+  address?: string;
+  parentPhone: string;
+  parentName?: string;
+}
+
+export interface AdminChildPatch {
+  name?: string;
+  grade?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export function adminOverview(token: string): Promise<AdminOverview> {
+  return request('/admin/overview', { token });
+}
+
+export function adminListChildren(token: string): Promise<AdminChild[]> {
+  return request('/admin/children', { token });
+}
+
+export function adminAddChild(token: string, body: AdminNewChild): Promise<Child> {
+  return request('/admin/children', { method: 'POST', body, token });
+}
+
+export function adminUpdateChild(
+  token: string,
+  id: string,
+  body: AdminChildPatch,
+): Promise<Child> {
+  return request(`/admin/children/${id}`, { method: 'PATCH', body, token });
+}
+
+export function adminRemoveChild(token: string, id: string): Promise<{ ok: boolean }> {
+  return request(`/admin/children/${id}`, { method: 'DELETE', token });
 }
 
 // --- Parent data (guarded) ---

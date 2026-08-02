@@ -85,6 +85,20 @@ with their phone, and in the **Children** card:
 Behind the scenes `POST /admin/children` creates the pickup stop, links (or
 creates) the parent by phone, and stores everything scoped to that school.
 
+### In the app (school on their phone)
+
+Schools don't need the web dashboard for day-to-day kid management. When a school
+operator logs into the **mobile app** with their phone, the app detects the
+`operator` role and opens the **School** area instead of the parent tabs:
+
+- a live list of the school's children;
+- **Add child** → name, grade, route, parent phone, address, and a **map you tap
+  to drop the pickup pin** (Apple Maps on iOS) — drag to fine-tune;
+- tap a child to edit their details or move the pin; swipe/trash to remove.
+
+Routes and buses are still created on the web dashboard for now; kid enrollment
+works from either place and hits the same guarded, school-scoped API.
+
 ## Going live (this is backend work — the app is still in demo mode)
 
 The TestFlight app currently runs in **demo mode** (`app.json →

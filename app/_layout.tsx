@@ -35,16 +35,23 @@ export default function RootLayout() {
  * mode this is a pass-through (no login needed).
  */
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { token, ready } = useAuth();
+  const { token, ready, role } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     if (!config.useBackend || !ready) return;
     const onLogin = segments[0] === 'login';
-    if (!token && !onLogin) router.replace('/login');
-    else if (token && onLogin) router.replace('/');
-  }, [token, ready, segments, router]);
+    const inSchool = segments[0] === 'school';
+    if (!token) {
+      if (!onLogin) router.replace('/login');
+    } else if (role === 'operator') {
+      // Schools live in the /school area, not the parent tabs.
+      if (!inSchool) router.replace('/school');
+    } else if (onLogin || inSchool) {
+      router.replace('/');
+    }
+  }, [token, ready, role, segments, router]);
 
   if (config.useBackend && !ready) {
     return (
@@ -69,6 +76,11 @@ function RootStack() {
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="school/index" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="school/add-child"
+        options={{ title: 'Add child', presentation: 'modal' }}
+      />
       <Stack.Screen
         name="track/[childId]"
         options={{ title: t('track.title'), presentation: 'card' }}
