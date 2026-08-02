@@ -66,8 +66,12 @@ interface UpdateChildBody {
   latitude?: number;
   longitude?: number;
   scheduledTime?: string;
+  /** Move the child to another bus/list (route). */
+  routeId?: string;
 }
 interface ArrangeBody {
+  /** Which bus/list to arrange. Defaults to the school's first list. */
+  routeId?: string;
   /** Child ids in pickup order (first picked up → last before school). */
   childIds: string[];
   /** "HH:MM" the bus should reach school by. Defaults to 07:30. */
@@ -302,6 +306,7 @@ export class AdminController {
           grade: c.grade,
           address: c.address ?? null,
           routeId: c.routeId,
+          routeName: route?.name ?? null,
           order: stop?.order ?? 0,
           location: stop?.location ?? null,
           scheduledTime: stop?.scheduledTime || null,
@@ -369,7 +374,37 @@ export class AdminController {
     @Param('id') id: string,
     @Body() body: UpdateChildBody,
   ): Promise<Child> {
-    const child = this.ownedChild(id, op);
+    let child = this.ownedChild(id, op);
+
+    // Move the child to another bus/list: pull their stop out of the old route
+    // and insert it before the new route's destination.
+    if (body.routeId && body.routeId !== child.routeId) {
+      const newRoute = this.ownedRoute(body.routeId, op);
+      const oldRoute = this.fleet.getRoute(child.routeId);
+      const existing = oldRoute?.stops.find((s) => s.id === child.stopId);
+      if (oldRoute) {
+        await this.fleet.updateRoute({
+          ...oldRoute,
+          stops: reindex(oldRoute.stops.filter((s) => s.id !== child.stopId)),
+        });
+      }
+      const moved: Stop = existing
+        ? { ...existing, scheduledTime: '' }
+        : {
+            id: child.stopId,
+            name: child.address || child.name,
+            order: 0,
+            location: { latitude: body.latitude ?? 0, longitude: body.longitude ?? 0 },
+            travelMinutesFromPrev: 5,
+            scheduledTime: '',
+          };
+      const at = Math.max(0, newRoute.stops.length - 1);
+      const ns = [...newRoute.stops];
+      ns.splice(at, 0, moved);
+      await this.fleet.updateRoute({ ...newRoute, stops: reindex(ns) });
+      child = await this.fleet.updateChild({ ...child, routeId: newRoute.id });
+    }
+
     const route = this.fleet.getRoute(child.routeId);
 
     // Move the pickup pin if new coordinates are given.
@@ -417,7 +452,9 @@ export class AdminController {
    */
   @Post('arrange')
   async arrange(@CurrentOperator() op: OperatorContext, @Body() body: ArrangeBody) {
-    const route = this.fleet.getRoutesForSchool(op.schoolId)[0];
+    const route = body.routeId
+      ? this.ownedRoute(body.routeId, op)
+      : this.fleet.getRoutesForSchool(op.schoolId)[0];
     if (!route) throw new NotFoundException('no pickup route yet — add a child first');
 
     const speed = body.avgSpeedKmh && body.avgSpeedKmh > 0 ? body.avgSpeedKmh : 20;

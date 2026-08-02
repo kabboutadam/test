@@ -8,10 +8,13 @@
   sets a **"be at school by"** time; the app computes **each child's pickup time**
   by estimating travel between homes and working backward from arrival. Parents
   see the pickup time on their child's card.
-- Same flow in the **app** (new *Arrange order & pickup times* screen) and the
-  **web dashboard**. New endpoint: `POST /admin/arrange`; `POST /admin/children`
-  no longer needs a `routeId`. Super-admin school access/subscription controls
-  are unchanged.
+- **Multiple buses.** A school can run several buses — each its own pickup list
+  with its own order, arrival time, and computed times. Add a bus, choose which
+  bus a child rides, and move kids between buses.
+- Same flow in the **app** (per-bus *Arrange* + *Add bus* screens) and the
+  **web dashboard** (kids grouped by bus). Endpoints: `POST /admin/arrange` and
+  add/move-child take an optional `routeId`; `POST /admin/children` no longer
+  needs one. Super-admin school access/subscription controls are unchanged.
 
 ## 0.3.0 — live backend
 

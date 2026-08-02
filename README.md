@@ -117,9 +117,10 @@ Driver app  ──emit driver:gps──▶  NestJS server  ──snap to route�
 - **Operator dashboard:** a web dashboard at **`/admin.html`** (served by the API)
   where a school operator signs in, monitors all their buses live (status,
   current→next stop, progress, child counts), and manages kids — add a child with
-  a **home pin**, **arrange the pickup order**, and the app **computes each
-  child's pickup time** (worked back from a school-arrival time). Also assigns
-  buses/drivers. Scoped to their school only.
+  a **home pin**, group them across **one or more buses**, **arrange each bus's
+  pickup order**, and the app **computes each child's pickup time** (worked back
+  from that bus's school-arrival time). Also assigns vehicles/drivers. Scoped to
+  their school only.
 - **Billing:** subscriptions activate only through a confirmed payment
   (checkout → confirm), behind a `PaymentProvider` interface — a mock provider by
   default, swappable for Stripe or a Lebanese gateway.

@@ -61,9 +61,10 @@ Operator — require an **operator** token, scoped to the operator's school:
 | GET  | `/api/admin/overview` | School, routes (bus/driver/child counts), totals |
 | GET  | `/api/admin/positions` | Live status per route in the school |
 | GET  | `/api/admin/children` | The school's kids, in pickup order |
-| POST | `/api/admin/children` | Add a child (home pin + parent phone); `routeId` optional — auto-joins the school's pickup route |
-| POST | `/api/admin/arrange` | Set pickup order (`childIds`) + `schoolArrival`; computes each child's time |
-| POST | `/api/admin/routes` | Create a route (name + stops); starts tracking |
+| POST | `/api/admin/children` | Add a child (home pin + parent phone); `routeId` optional — picks the bus, else the first/auto one |
+| PATCH | `/api/admin/children/:id` | Edit a child, move the pin, or move to another bus (`routeId`) |
+| POST | `/api/admin/arrange` | Set one bus's pickup order (`routeId` + `childIds`) + `schoolArrival`; computes each child's time |
+| POST | `/api/admin/routes` | Create a bus/list (name only → school as destination); starts tracking |
 | POST | `/api/admin/buses` | Create a bus on a route (one per route) |
 | PATCH | `/api/admin/buses/:id` | Edit a bus / reassign its driver |
 

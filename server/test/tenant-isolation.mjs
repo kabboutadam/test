@@ -145,6 +145,25 @@ async function run() {
   })).data;
   check('arrange returns computed pickup times', Array.isArray(schedule) && schedule.length >= 1 && /^\d{2}:\d{2}$/.test(schedule[0].scheduledTime));
 
+  // Multiple buses: create a second list, add a kid to it, arrange just it.
+  const bus2 = (await api('/admin/routes', { method: 'POST', token: opA, body: { name: 'Bus 2' } })).data;
+  check('second bus created', bus2?.id?.startsWith('route_'));
+  const bus2Child = (await api('/admin/children', {
+    method: 'POST', token: opA,
+    body: { name: 'Sami', routeId: bus2.id, latitude: 34.45, longitude: 35.84, parentPhone: '+961 76 777 777' },
+  })).data;
+  check('child added to a chosen bus', bus2Child?.routeId === bus2.id);
+  const sched2 = (await api('/admin/arrange', {
+    method: 'POST', token: opA,
+    body: { routeId: bus2.id, childIds: [bus2Child.id], schoolArrival: '08:00' },
+  })).data;
+  check('arrange targets a single bus', Array.isArray(sched2) && sched2.length === 1 && /^\d{2}:\d{2}$/.test(sched2[0].scheduledTime));
+
+  // Move a child from their bus onto bus 2.
+  await api('/admin/children/' + autoChild.id, { method: 'PATCH', token: opA, body: { routeId: bus2.id } });
+  const afterMove = (await api('/admin/children', { token: opA })).data;
+  check('child moved to another bus', afterMove.find((c) => c.id === autoChild.id)?.routeId === bus2.id);
+
   // --- Isolation between schools ---
   const aKids = (await api('/admin/children', { token: opA })).data;
   check('operator A sees its own kids', Array.isArray(aKids) && aKids.some((c) => c.id === childA.id));

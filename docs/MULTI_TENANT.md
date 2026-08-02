@@ -93,18 +93,28 @@ pin onto the school's auto-created pickup route and links/creates the parent by
 phone; `POST /admin/arrange` reorders the pickups and back-fills every
 `scheduledTime`. Everything is scoped to that school.
 
+**Multiple buses.** A school that runs more than one bus adds a **bus** (a named
+pickup list) with **Add bus**, then assigns each child to a bus and arranges
+each bus on its own — its own order, its own "be at school by" time, its own
+computed pickup times. Under the hood each bus is a route (`POST /admin/routes`
+with just a name); `arrange` and add/move-child take an optional `routeId` to
+target one bus, and `PATCH /admin/children/:id` with a `routeId` moves a child
+between buses. A separate step assigns a **vehicle + driver** to each bus.
+
 ### In the app (school on their phone)
 
 When a school operator logs into the **mobile app** with their phone, the app
 detects the `operator` role and opens the **School** area instead of the parent
 tabs:
 
-- a list of the school's kids **in pickup order**, each with their computed time;
-- **Add child** → name, grade, parent phone, address, and a **map you tap to drop
-  the home pin** (Apple Maps on iOS, with place search);
-- **Arrange order & pickup times** → move kids up/down, set the school-arrival
-  time, one tap to save the order and recompute times;
-- tap a child to edit their details or move the pin; trash to remove.
+- the school's kids **grouped by bus**, each in pickup order with their time;
+- **Add child** → name, grade, parent phone, address, a **map you tap to drop the
+  home pin** (Apple Maps on iOS, with place search), and — if there's more than
+  one bus — which **bus** to add them to;
+- **Add bus** → name a second/third pickup list;
+- per-bus **Arrange** → move kids up/down, set that bus's school-arrival time,
+  one tap to save the order and recompute times;
+- tap a child to edit their details, move the pin, or move them to another bus.
 
 The web dashboard (`/admin.html`) mirrors this exact flow for staff who prefer a
 big screen, and stays the place for **bus/driver assignment**. Both hit the same

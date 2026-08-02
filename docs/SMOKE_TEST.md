@@ -101,14 +101,15 @@ This is the default (`app.json → expo.extra.useBackend = false`).
       correctly not shown.)_
 - [ ] Optional: operator `+961 3 999 111` shows **Mount Lebanon School** (Route C).
 - [ ] **Add child:** in the **Children** card enter a name, grade, parent phone,
-      and address; search a place and tap the map to drop the **home pin** →
-      **Add child**. No route to pick — the child joins the school's pickup list.
-- [ ] **Arrange order & times:** use the ▲▼ controls to order the kids, set
-      **"Be at school by"** (e.g. `07:30`) → **Save order & times**. Each child's
-      **Pickup** column fills in with a computed time.
-- [ ] **Add bus:** pick the school's route in "Add bus", fill plate/driver/phone →
-      **Add bus**. The row now shows the bus/driver. (That driver phone can now
-      log in as a driver.)
+      and address; pick a **Bus** (or leave the first), search a place and tap the
+      map to drop the **home pin** → **Add child**.
+- [ ] **Add a second bus:** in "Add a bus (list)" type a name (e.g. `Bus 2`) →
+      **Add bus**. A new empty bus group appears; move a child into it with the
+      row's **Bus** dropdown.
+- [ ] **Arrange a bus:** in a bus group use ▲▼ to order it, set **"by"** (e.g.
+      `07:30`) → **Save order & times**. That bus's **Pickup** times fill in.
+- [ ] **Assign vehicle & driver:** in "Assign vehicle & driver" pick a bus, fill
+      plate/driver/phone → **Assign**. (That driver phone can now log in.)
 - [ ] **Edit driver:** click **edit** on a bus row, change the driver → the row
       updates.
 

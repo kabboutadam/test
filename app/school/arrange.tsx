@@ -5,7 +5,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -32,6 +32,7 @@ interface Row {
 export default function ArrangeScreen() {
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
+  const { routeId, name } = useLocalSearchParams<{ routeId?: string; name?: string }>();
   const [rows, setRows] = useState<Row[]>([]);
   const [arrival, setArrival] = useState('07:30');
   const [loading, setLoading] = useState(true);
@@ -43,12 +44,12 @@ export default function ArrangeScreen() {
     const kids = await api.adminListChildren(token);
     setRows(
       kids
-        .slice()
+        .filter((c) => !routeId || c.routeId === routeId)
         .sort((a, b) => a.order - b.order)
         .map((c) => ({ id: c.id, name: c.name, address: c.address, scheduledTime: c.scheduledTime })),
     );
     setLoading(false);
-  }, [token]);
+  }, [token, routeId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -70,6 +71,7 @@ export default function ArrangeScreen() {
     setNote(null);
     try {
       const result = await api.adminArrange(token, {
+        routeId: routeId || undefined,
         childIds: rows.map((r) => r.id),
         schoolArrival: arrival.trim() || '07:30',
       });
@@ -97,11 +99,12 @@ export default function ArrangeScreen() {
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Stack.Screen options={{ title: 'Pickup order & times' }} />
+      <Stack.Screen options={{ title: name ? `${name} · order` : 'Pickup order & times' }} />
 
       <Text style={styles.intro}>
-        Put the kids in the order the bus picks them up (first at the top). Set
-        when the bus should reach school, and we'll time every pickup.
+        {name ? `${name}: put ` : 'Put '}the kids in the order the bus picks them
+        up (first at the top). Set when the bus should reach school, and we'll
+        time every pickup.
       </Text>
 
       <View style={styles.arrivalRow}>

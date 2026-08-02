@@ -10,8 +10,8 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -27,6 +27,7 @@ export default function SchoolHome() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [schoolName, setSchoolName] = useState('School');
+  const [routes, setRoutes] = useState<api.AdminOverview['routes']>([]);
   const [children, setChildren] = useState<api.AdminChild[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +39,7 @@ export default function SchoolHome() {
         api.adminListChildren(token),
       ]);
       setSchoolName(overview.school?.name ?? 'School');
+      setRoutes(overview.routes);
       setChildren(kids);
     } catch (err) {
       if (err instanceof api.ApiError && err.status === 401) await signOut();
@@ -87,59 +89,100 @@ export default function SchoolHome() {
         {loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
         ) : (
-          <FlatList
-            data={children}
-            keyExtractor={(c) => c.id}
+          <ScrollView
             contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
-            ListHeaderComponent={
-              <View style={{ marginBottom: spacing.sm }}>
-                {children.length > 0 && (
-                  <Link href="/school/arrange" asChild>
-                    <Pressable style={styles.arrangeBtn}>
-                      <Ionicons name="swap-vertical" size={18} color={colors.onPrimary} />
-                      <Text style={styles.arrangeText}>Arrange order & pickup times</Text>
-                    </Pressable>
-                  </Link>
-                )}
-                <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>
-                  Children ({children.length})
-                </Text>
-              </View>
-            }
-            ListEmptyComponent={
-              <Text style={styles.empty}>
-                No children yet. Tap “Add child” to enroll your first pickup.
-              </Text>
-            }
-            renderItem={({ item }) => (
-              <Pressable
-                style={styles.row}
-                onPress={() =>
-                  router.push({ pathname: '/school/add-child', params: { childId: item.id } })
-                }
-              >
-                <View style={styles.rowIcon}>
-                  <Ionicons name="location" size={18} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>
-                    {item.order + 1}. {item.name}
-                    {item.scheduledTime ? `  ·  ${item.scheduledTime}` : ''}
-                  </Text>
-                  <Text style={styles.rowSub} numberOfLines={1}>
-                    {item.address ?? 'Tap to set home pin'}
-                  </Text>
-                  <Text style={styles.rowMeta} numberOfLines={1}>
-                    {item.grade || '—'}
-                    {item.parentPhone ? ` · ${item.parentPhone}` : ''}
-                  </Text>
-                </View>
-                <Pressable onPress={() => confirmRemove(item)} hitSlop={10}>
-                  <Ionicons name="trash-outline" size={20} color={colors.danger} />
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionTitle}>Buses ({routes.length})</Text>
+              <Link href="/school/add-bus" asChild>
+                <Pressable style={styles.newBtn}>
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Text style={styles.newBtnText}>Add bus</Text>
                 </Pressable>
-              </Pressable>
+              </Link>
+            </View>
+
+            {routes.length === 0 ? (
+              <Text style={styles.empty}>
+                No buses yet. Tap “Add child” to start your first list, or “Add bus”.
+              </Text>
+            ) : (
+              routes.map((route) => {
+                const kids = children
+                  .filter((c) => c.routeId === route.id)
+                  .sort((a, b) => a.order - b.order);
+                return (
+                  <View key={route.id} style={styles.group}>
+                    <View style={styles.groupHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.groupTitle}>{route.name}</Text>
+                        <Text style={styles.groupMeta}>
+                          {kids.length} kid{kids.length === 1 ? '' : 's'}
+                          {route.plateNumber ? ` · ${route.plateNumber}` : ' · no bus assigned'}
+                        </Text>
+                      </View>
+                      {kids.length > 0 && (
+                        <Link
+                          href={{ pathname: '/school/arrange', params: { routeId: route.id, name: route.name } }}
+                          asChild
+                        >
+                          <Pressable style={styles.arrangeSm}>
+                            <Ionicons name="swap-vertical" size={15} color={colors.onPrimary} />
+                            <Text style={styles.arrangeSmText}>Arrange</Text>
+                          </Pressable>
+                        </Link>
+                      )}
+                    </View>
+
+                    {kids.length === 0 ? (
+                      <Text style={styles.groupEmpty}>No kids on this bus yet.</Text>
+                    ) : (
+                      kids.map((item) => (
+                        <Pressable
+                          key={item.id}
+                          style={styles.row}
+                          onPress={() =>
+                            router.push({ pathname: '/school/add-child', params: { childId: item.id } })
+                          }
+                        >
+                          <View style={styles.orderBadge}>
+                            <Text style={styles.orderBadgeText}>{item.order + 1}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.rowTitle}>
+                              {item.name}
+                              {item.scheduledTime ? `  ·  ${item.scheduledTime}` : ''}
+                            </Text>
+                            <Text style={styles.rowSub} numberOfLines={1}>
+                              {item.address ?? 'Tap to set home pin'}
+                            </Text>
+                            <Text style={styles.rowMeta} numberOfLines={1}>
+                              {item.grade || '—'}
+                              {item.parentPhone ? ` · ${item.parentPhone}` : ''}
+                            </Text>
+                          </View>
+                          <Pressable onPress={() => confirmRemove(item)} hitSlop={10}>
+                            <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                          </Pressable>
+                        </Pressable>
+                      ))
+                    )}
+
+                    <Link
+                      href={{ pathname: '/school/add-child', params: { routeId: route.id } }}
+                      asChild
+                    >
+                      <Pressable style={styles.addToBus}>
+                        <Ionicons name="add" size={15} color={colors.primary} />
+                        <Text style={styles.addToBusText}>Add child to {route.name}</Text>
+                      </Pressable>
+                    </Link>
+                  </View>
+                );
+              })
             )}
-          />
+          </ScrollView>
         )}
       </View>
 
@@ -241,6 +284,44 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowSub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   rowMeta: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
+  group: { marginTop: spacing.lg },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm },
+  groupTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
+  groupMeta: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
+  groupEmpty: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic', marginBottom: spacing.xs },
+  arrangeSm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+  },
+  arrangeSmText: { color: colors.onPrimary, fontWeight: '700', fontSize: 13 },
+  orderBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orderBadgeText: { fontSize: 13, fontWeight: '800', color: colors.text },
+  addToBus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  addToBusText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
   fab: {
     position: 'absolute',
     right: spacing.lg,

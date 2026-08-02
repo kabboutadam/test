@@ -95,10 +95,14 @@
       .link-btn { background: none; padding: 0; color: var(--primary); font-size: 12px; font-weight: 700; }
       .children-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       @media (max-width: 760px) { .children-grid { grid-template-columns: 1fr; } }
-      .arrange-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-      .arrange-bar label { font-size: 14px; color: #334155; }
       .ord-btn { border: 0; background: none; cursor: pointer; font-size: 14px; color: #2563eb; padding: 0 3px; }
       .ord-btn:disabled { color: #cbd5e1; cursor: default; }
+      .bus-group { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+      .bus-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+      .bus-head strong { font-size: 15px; }
+      .bus-head .grow { flex: 1; }
+      .bus-group select.move { margin: 0; padding: 4px 6px; font-size: 12px; }
+      .arrange-msg:empty { display: none; }
       #childMap, #schoolMap { height: 240px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 10px; }
       .pin-hint { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
       .del-btn { background: none; color: var(--danger); padding: 0; font-size: 12px; font-weight: 700; }
@@ -142,37 +146,36 @@
 
         <div class="manage">
           <div class="card">
-            <h3>Add bus</h3>
+            <h3>Add a bus (list)</h3>
+            <p class="src" style="margin:0 0 8px">A bus is a pickup list. Name it, then add kids and arrange their order below.</p>
+            <input id="newBusName" placeholder="Bus name (e.g. Bus 1)" />
+            <button id="addListBtn" class="btn-primary">Add bus</button>
+            <div id="listMsg" class="msg"></div>
+          </div>
+          <div class="card">
+            <h3>Assign vehicle &amp; driver</h3>
             <select id="busRoute"></select>
             <input id="busPlate" placeholder="Plate (e.g. B 123456)" />
             <input id="busDriver" placeholder="Driver name" />
             <input id="busPhone" placeholder="Driver phone (their login)" inputmode="tel" />
-            <button id="addBusBtn" class="btn-primary">Add bus</button>
+            <button id="addBusBtn" class="btn-primary">Assign</button>
             <div id="busMsg" class="msg"></div>
           </div>
         </div>
 
         <div class="card" style="margin-top:20px">
-          <h3 style="margin:0 0 12px">Children · pickup order &amp; times</h3>
-          <div class="arrange-bar">
-            <label>Be at school by
-              <input id="arriveBy" value="07:30" placeholder="07:30" style="width:80px;text-align:center;margin:0 0 0 6px" />
-            </label>
-            <button id="arrangeBtn" class="btn-primary" style="padding:9px 16px;margin:0">Save order &amp; times</button>
-            <span id="arrangeMsg" class="msg" style="margin:0"></span>
-          </div>
+          <h3 style="margin:0 0 12px">Children · buses, order &amp; times</h3>
           <div class="children-grid">
             <div>
-              <table>
-                <thead><tr><th>Order</th><th>Name</th><th>Home</th><th>Pickup</th><th>Parent</th><th></th></tr></thead>
-                <tbody id="childRows"><tr><td colspan="6" class="src">No children yet.</td></tr></tbody>
-              </table>
-              <div class="src" style="margin-top:8px">Use ▲▼ to set the pickup order (first at the top), then <em>Save order &amp; times</em>.</div>
+              <div id="childGroups"><div class="src">No buses yet — add a child to start your first list.</div></div>
+              <div class="src" style="margin-top:8px">Each bus is its own list: use ▲▼ to order it, set its arrival time, then <em>Save order &amp; times</em>. The <em>Bus</em> dropdown moves a child.</div>
             </div>
             <div>
               <h3 style="font-size:14px">Add a child</h3>
               <input id="cName" placeholder="Child full name" />
               <input id="cGrade" placeholder="Grade (e.g. Grade 3)" />
+              <label class="src" style="display:block;margin-bottom:4px">Bus</label>
+              <select id="cRoute"></select>
               <input id="cParent" placeholder="Parent phone (their login)" inputmode="tel" />
               <input id="cAddress" placeholder="Home address (label)" />
               <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -310,7 +313,11 @@
         $('busRoute').innerHTML = overview.routes
           .filter((x) => !x.busId)
           .map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>')
-          .join('') || '<option value="">(every route has a bus)</option>';
+          .join('') || '<option value="">(every bus has a vehicle)</option>';
+        // Bus picker for add-child (empty first time → server auto-creates one).
+        $('cRoute').innerHTML = overview.routes
+          .map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>')
+          .join('') || '<option value="">(first bus, auto-created)</option>';
         return true;
       }
 
@@ -333,25 +340,50 @@
         $('cPin').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
       }
 
-      // Ordered list of the school's kids (server returns them in pickup order).
+      // The school's kids (each carries routeId + routeName + order + time),
+      // grouped into buses on screen. Arrival time is remembered per bus.
       let kids = [];
+      const arriveByRoute = {};
+      function busSelect(c) {
+        const opts = overview.routes
+          .map((r) => '<option value="' + r.id + '"' + (r.id === c.routeId ? ' selected' : '') + '>' + esc(r.name) + '</option>')
+          .join('');
+        return '<select class="move" data-child="' + c.id + '">' + opts + '</select>';
+      }
       function renderChildren() {
-        $('childRows').innerHTML = kids.length
-          ? kids.map((c, i) =>
-              '<tr>' +
-              td(
-                '<button class="ord-btn" data-up="' + i + '"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
-                '<strong>' + (i + 1) + '</strong>' +
-                '<button class="ord-btn" data-down="' + i + '"' + (i === kids.length - 1 ? ' disabled' : '') + '>▼</button>'
-              ) +
-              td('<strong>' + esc(c.name) + '</strong><div class="src">' + esc(c.grade || '') + '</div>') +
-              td('<div class="src">' + esc(c.address || (c.location ? c.location.latitude.toFixed(4) + ', ' + c.location.longitude.toFixed(4) : '—')) + '</div>') +
-              td('<strong>' + esc(c.scheduledTime || '—') + '</strong>') +
-              td('<div class="src">' + esc(c.parentPhone || '—') + '</div>') +
-              td('<button class="del-btn" data-del="' + c.id + '">remove</button>') +
-              '</tr>'
+        const groups = (overview.routes || []).map((r) => ({
+          route: r,
+          list: kids.filter((k) => k.routeId === r.id).sort((a, b) => a.order - b.order),
+        }));
+        $('childGroups').innerHTML = groups.length
+          ? groups.map((g) =>
+              '<div class="bus-group" data-route="' + g.route.id + '">' +
+                '<div class="bus-head">' +
+                  '<strong>' + esc(g.route.name) + '</strong>' +
+                  '<span class="src">' + g.list.length + ' kid' + (g.list.length === 1 ? '' : 's') +
+                    (g.route.plateNumber ? ' · ' + esc(g.route.plateNumber) : '') + '</span>' +
+                  '<span class="grow"></span>' +
+                  '<label class="src">by <input class="arrive" value="' + esc(arriveByRoute[g.route.id] || '07:30') + '" style="width:64px;text-align:center;margin:0 0 0 4px" /></label>' +
+                  '<button class="btn-primary arrange-one" style="padding:7px 12px;margin:0">Save order &amp; times</button>' +
+                '</div>' +
+                (g.list.length
+                  ? '<table><tbody>' + g.list.map((c, i) =>
+                      '<tr>' +
+                      td('<button class="ord-btn" data-up="' + c.id + '"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+                         '<strong>' + (i + 1) + '</strong>' +
+                         '<button class="ord-btn" data-down="' + c.id + '"' + (i === g.list.length - 1 ? ' disabled' : '') + '>▼</button>') +
+                      td('<strong>' + esc(c.name) + '</strong><div class="src">' + esc(c.grade || '') + '</div>') +
+                      td('<div class="src">' + esc(c.address || (c.location ? c.location.latitude.toFixed(4) + ', ' + c.location.longitude.toFixed(4) : '—')) + '</div>') +
+                      td('<strong>' + esc(c.scheduledTime || '—') + '</strong>') +
+                      td(busSelect(c)) +
+                      td('<button class="del-btn" data-del="' + c.id + '">remove</button>') +
+                      '</tr>'
+                    ).join('') + '</tbody></table>'
+                  : '<div class="src" style="padding:6px 0">No kids on this bus yet.</div>') +
+                '<div class="msg arrange-msg"></div>' +
+              '</div>'
             ).join('')
-          : '<tr><td colspan="6" class="src">No children yet.</td></tr>';
+          : '<div class="src">No buses yet — add a child to start your first list.</div>';
       }
 
       async function loadChildren() {
@@ -369,6 +401,7 @@
           body: JSON.stringify({
             name: $('cName').value,
             grade: $('cGrade').value,
+            routeId: $('cRoute').value || undefined,
             parentPhone: $('cParent').value,
             address: $('cAddress').value,
             latitude: pin.lat,
@@ -387,47 +420,85 @@
         }
       };
 
-      $('childRows').addEventListener('click', async (e) => {
-        const up = e.target.closest('[data-up]');
-        const down = e.target.closest('[data-down]');
-        if (up || down) {
-          const i = parseInt((up || down).dataset[up ? 'up' : 'down'], 10);
-          const j = up ? i - 1 : i + 1;
-          if (j < 0 || j >= kids.length) return;
-          const t = kids[i]; kids[i] = kids[j]; kids[j] = t;
+      // Add a bus (a named pickup list / route).
+      $('addListBtn').onclick = async () => {
+        setMsg('listMsg', '', '');
+        const name = $('newBusName').value.trim();
+        if (!name) return setMsg('listMsg', 'Give the bus a name.', 'err');
+        const r = await api('/admin/routes', { method: 'POST', body: JSON.stringify({ name }) });
+        if (r.ok) {
+          $('newBusName').value = '';
+          setMsg('listMsg', 'Bus added.', 'ok');
+          await refreshOverview();
+          await loadChildren();
+        } else {
+          setMsg('listMsg', (await r.json()).message || 'Failed', 'err');
+        }
+      };
+
+      // Remember each bus's arrival time across re-renders.
+      $('childGroups').addEventListener('input', (e) => {
+        const inp = e.target.closest('.arrive');
+        if (!inp) return;
+        arriveByRoute[inp.closest('.bus-group').dataset.route] = inp.value;
+      });
+
+      // Reorder within a bus, or remove a child.
+      $('childGroups').addEventListener('click', async (e) => {
+        const step = e.target.closest('[data-up],[data-down]');
+        if (step) {
+          const up = step.hasAttribute('data-up');
+          const id = up ? step.dataset.up : step.dataset.down;
+          const c = kids.find((k) => k.id === id);
+          if (!c) return;
+          const sibs = kids.filter((k) => k.routeId === c.routeId).sort((a, b) => a.order - b.order);
+          const nb = sibs[sibs.indexOf(c) + (up ? -1 : 1)];
+          if (!nb) return;
+          const t = c.order; c.order = nb.order; nb.order = t;
           renderChildren();
           return;
         }
-        const btn = e.target.closest('[data-del]');
-        if (!btn) return;
+        const arrange = e.target.closest('.arrange-one');
+        if (arrange) {
+          const group = arrange.closest('.bus-group');
+          const routeId = group.dataset.route;
+          const arrive = (group.querySelector('.arrive').value || '07:30').trim();
+          const msg = group.querySelector('.arrange-msg');
+          const list = kids.filter((k) => k.routeId === routeId).sort((a, b) => a.order - b.order);
+          if (!list.length) { msg.textContent = 'Add kids to this bus first.'; msg.className = 'msg arrange-msg err'; return; }
+          const r = await api('/admin/arrange', {
+            method: 'POST',
+            body: JSON.stringify({ routeId, childIds: list.map((c) => c.id), schoolArrival: arrive }),
+          });
+          if (r.ok) {
+            const schedule = await r.json();
+            const timeById = {};
+            schedule.forEach((s) => { timeById[s.childId] = s.scheduledTime; });
+            kids = kids.map((c) => (timeById[c.id] ? { ...c, scheduledTime: timeById[c.id] } : c));
+            renderChildren();
+          } else {
+            msg.textContent = (await r.json()).message || 'Failed'; msg.className = 'msg arrange-msg err';
+          }
+          return;
+        }
+        const del = e.target.closest('[data-del]');
+        if (!del) return;
         if (!confirm('Remove this child?')) return;
-        const r = await api('/admin/children/' + btn.dataset.del, { method: 'DELETE' });
+        const r = await api('/admin/children/' + del.dataset.del, { method: 'DELETE' });
         if (r.ok) { await refreshOverview(); await loadChildren(); }
         else alert('Remove failed');
       });
 
-      // Save the on-screen order and compute each child's pickup time.
-      $('arrangeBtn').onclick = async () => {
-        setMsg('arrangeMsg', '', '');
-        if (!kids.length) return setMsg('arrangeMsg', 'Add children first.', 'err');
-        const r = await api('/admin/arrange', {
-          method: 'POST',
-          body: JSON.stringify({
-            childIds: kids.map((c) => c.id),
-            schoolArrival: ($('arriveBy').value || '07:30').trim(),
-          }),
+      // Move a child to another bus.
+      $('childGroups').addEventListener('change', async (e) => {
+        const sel = e.target.closest('select.move');
+        if (!sel) return;
+        const r = await api('/admin/children/' + sel.dataset.child, {
+          method: 'PATCH', body: JSON.stringify({ routeId: sel.value }),
         });
-        if (r.ok) {
-          const schedule = await r.json();
-          const timeById = {};
-          schedule.forEach((s) => { timeById[s.childId] = s.scheduledTime; });
-          kids = kids.map((c) => ({ ...c, scheduledTime: timeById[c.id] || c.scheduledTime }));
-          renderChildren();
-          setMsg('arrangeMsg', 'Saved — pickup times updated.', 'ok');
-        } else {
-          setMsg('arrangeMsg', (await r.json()).message || 'Failed', 'err');
-        }
-      };
+        if (r.ok) { await refreshOverview(); await loadChildren(); }
+        else { alert('Move failed'); await loadChildren(); }
+      });
 
       // Free geocoder (OpenStreetMap) — jumps the map near a typed place; the
       // exact pin is still set by tapping. Scoped to Lebanon.

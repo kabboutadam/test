@@ -51,10 +51,12 @@ export default function SchoolAddChild() {
   const { token } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { childId } = useLocalSearchParams<{ childId?: string }>();
+  const { childId, routeId: routeParam } = useLocalSearchParams<{ childId?: string; routeId?: string }>();
   const editing = !!childId;
 
   const [region, setRegion] = useState<Region>(BEIRUT);
+  const [routes, setRoutes] = useState<api.AdminOverview['routes']>([]);
+  const [routeId, setRouteId] = useState<string | null>(routeParam ?? null);
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
   const [parentPhone, setParentPhone] = useState('');
@@ -94,6 +96,7 @@ export default function SchoolAddChild() {
     (async () => {
       try {
         const overview = await api.adminOverview(token);
+        setRoutes(overview.routes);
         if (overview.school) {
           setRegion({ ...overview.school.location, latitudeDelta: 0.05, longitudeDelta: 0.05 });
         }
@@ -105,11 +108,15 @@ export default function SchoolAddChild() {
             setGrade(child.grade === '—' ? '' : child.grade);
             setParentPhone(child.parentPhone ?? '');
             setAddress(child.address ?? '');
+            setRouteId(child.routeId);
             if (child.location) {
               setPin(child.location);
               setRegion({ ...child.location, latitudeDelta: 0.02, longitudeDelta: 0.02 });
             }
           }
+        } else {
+          // New child: default to the passed bus, else the first one.
+          setRouteId((prev) => prev ?? overview.routes[0]?.id ?? null);
         }
       } finally {
         setLoading(false);
@@ -134,9 +141,9 @@ export default function SchoolAddChild() {
           address: address.trim(),
           latitude: pin.latitude,
           longitude: pin.longitude,
+          routeId: routeId || undefined, // move to another bus if changed
         });
       } else {
-        // No route to pick — the child joins the school's pickup list.
         await api.adminAddChild(token, {
           name: name.trim(),
           grade: grade.trim(),
@@ -144,6 +151,7 @@ export default function SchoolAddChild() {
           address: address.trim() || undefined,
           latitude: pin.latitude,
           longitude: pin.longitude,
+          routeId: routeId || undefined, // omit → school's first/only bus
         });
       }
       router.back();
@@ -172,6 +180,22 @@ export default function SchoolAddChild() {
       <Text style={styles.label}>Child</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Full name" editable={!busy} />
       <TextInput style={styles.input} value={grade} onChangeText={setGrade} placeholder="Grade (e.g. Grade 3)" editable={!busy} />
+
+      {routes.length > 1 && (
+        <>
+          <Text style={styles.label}>{editing ? 'Bus' : 'Add to bus'}</Text>
+          {routes.map((r) => (
+            <Pressable
+              key={r.id}
+              style={[styles.selectRow, routeId === r.id && styles.selectRowActive]}
+              onPress={() => setRouteId(r.id)}
+              disabled={busy}
+            >
+              <Text style={[styles.selectText, routeId === r.id && styles.selectTextActive]}>{r.name}</Text>
+            </Pressable>
+          ))}
+        </>
+      )}
 
       {editing ? (
         <>

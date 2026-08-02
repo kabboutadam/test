@@ -69,6 +69,7 @@ export interface AdminChild {
   grade: string;
   address: string | null;
   routeId: string;
+  routeName: string | null;
   order: number;
   location: { latitude: number; longitude: number } | null;
   scheduledTime: string | null;
@@ -89,6 +90,8 @@ export interface AdminNewChild {
 }
 
 export interface ArrangeInput {
+  /** Which bus/list to arrange. Omit for the school's first list. */
+  routeId?: string;
   childIds: string[];
   schoolArrival?: string;
   avgSpeedKmh?: number;
@@ -108,6 +111,8 @@ export interface AdminChildPatch {
   address?: string;
   latitude?: number;
   longitude?: number;
+  /** Move the child to another bus/list. */
+  routeId?: string;
 }
 
 export function adminOverview(token: string): Promise<AdminOverview> {
