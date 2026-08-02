@@ -60,14 +60,18 @@ Operator — require an **operator** token, scoped to the operator's school:
 | --- | --- | --- |
 | GET  | `/api/admin/overview` | School, routes (bus/driver/child counts), totals |
 | GET  | `/api/admin/positions` | Live status per route in the school |
+| GET  | `/api/admin/children` | The school's kids, in pickup order |
+| POST | `/api/admin/children` | Add a child (home pin + parent phone); `routeId` optional — auto-joins the school's pickup route |
+| POST | `/api/admin/arrange` | Set pickup order (`childIds`) + `schoolArrival`; computes each child's time |
 | POST | `/api/admin/routes` | Create a route (name + stops); starts tracking |
 | POST | `/api/admin/buses` | Create a bus on a route (one per route) |
 | PATCH | `/api/admin/buses/:id` | Edit a bus / reassign its driver |
 
 Writes are validated against the operator's school (cross-school → 403). The
 **operator dashboard** is served at **`/admin.html`** (static, from `public/`):
-operator OTP login, a live monitor polling `/admin/positions`, and forms to add
-routes/buses and edit drivers.
+operator OTP login, a live monitor polling `/admin/positions`, add a child with a
+home pin, **arrange the pickup order** (times auto-computed), and add buses / edit
+drivers.
 
 ## Auth
 

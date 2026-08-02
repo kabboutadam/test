@@ -81,8 +81,10 @@ Get the URL with `fly info` (e.g. `https://busmapp-api.fly.dev`).
 3. **Create a school:** type its name, **tap the map** to drop it anywhere in
    Lebanon, Create. Then **+ Add login** and enter the school manager's phone.
 4. **The school takes over (on their phone or the dashboard):** they sign in
-   with that phone, tap **New route** (just a name), then **Add child** for each
-   kid — dropping a pin on the home and entering the parent's phone.
+   with that phone and **Add child** for each kid — dropping a pin on the home
+   and entering the parent's phone (no route to set up). Then **Arrange order &
+   pickup times**: order the kids and set a school-arrival time, and the app
+   computes every child's pickup time.
 5. **Parents** sign in with the phone the school entered and track their kid.
    Movement is simulated per route until a driver streams real GPS, so tracking
    works immediately.

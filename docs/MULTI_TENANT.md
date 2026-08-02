@@ -74,34 +74,41 @@ New schools default to a **14-day trial** so they can start immediately.
 
 ## A school adds its own kids (operator)
 
-The school manager opens the **operator dashboard** (`/admin.html`), logs in
-with their phone, and in the **Children** card:
+The school never builds "routes." It just adds each child with their **home
+address**, arranges the kids in **pickup order**, and the app computes each
+child's **pickup time**. Three steps:
 
-1. Enter the child's name, grade, route, and the **parent's phone**.
-2. **Tap the map** to drop the pickup pin at the child's home.
-3. Add. The pin becomes that child's pickup stop on the route; the parent can
-   now log in with the phone you entered and track the bus.
+1. **Add each child** — name, grade, the **parent's phone**, a home-address
+   label, and the **home pin** (search a place, then tap to fine-tune). No route
+   to pick: the child joins the school's single pickup list automatically.
+2. **Arrange the order** — put the kids in the sequence the bus collects them
+   (first at the top) with the ▲▼ controls.
+3. **Set "be at school by"** (e.g. `07:30`) and save. The app times every
+   pickup — working backward from the arrival time and estimating travel between
+   homes from the distance between pins — and each parent sees their child's
+   pickup time.
 
-Behind the scenes `POST /admin/children` creates the pickup stop, links (or
-creates) the parent by phone, and stores everything scoped to that school.
+Behind the scenes: `POST /admin/children` (no `routeId` needed) drops the home
+pin onto the school's auto-created pickup route and links/creates the parent by
+phone; `POST /admin/arrange` reorders the pickups and back-fills every
+`scheduledTime`. Everything is scoped to that school.
 
 ### In the app (school on their phone)
 
-Schools don't need the web dashboard for day-to-day kid management. When a school
-operator logs into the **mobile app** with their phone, the app detects the
-`operator` role and opens the **School** area instead of the parent tabs:
+When a school operator logs into the **mobile app** with their phone, the app
+detects the `operator` role and opens the **School** area instead of the parent
+tabs:
 
-- a live list of the school's routes (with kid counts) and children;
-- **New route** → just type a name. The school is auto-set as the destination
-  and each child's pin fills in the pickup stops — no maps or coordinates to
-  create a route. (`POST /admin/routes` with a name only.)
-- **Add child** → name, grade, route, parent phone, address, and a **map you tap
-  to drop the pickup pin** (Apple Maps on iOS) — drag to fine-tune;
+- a list of the school's kids **in pickup order**, each with their computed time;
+- **Add child** → name, grade, parent phone, address, and a **map you tap to drop
+  the home pin** (Apple Maps on iOS, with place search);
+- **Arrange order & pickup times** → move kids up/down, set the school-arrival
+  time, one tap to save the order and recompute times;
 - tap a child to edit their details or move the pin; trash to remove.
 
-A school never needs the web dashboard: routes and kids are both created from
-the phone. The dashboard remains available for bus/driver assignment and staff
-who prefer a big screen, and hits the same guarded, school-scoped API.
+The web dashboard (`/admin.html`) mirrors this exact flow for staff who prefer a
+big screen, and stays the place for **bus/driver assignment**. Both hit the same
+guarded, school-scoped API.
 
 ## Going live (this is backend work — the app is still in demo mode)
 

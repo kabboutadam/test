@@ -1,5 +1,18 @@
 # Release notes
 
+## Unreleased — simpler school setup
+
+- **No more route-building for schools.** A school now just adds each child with
+  their **home address/pin** and the **parent's phone** — no route to pick.
+- **Arrange by order, times are automatic.** The school orders the kids (▲▼) and
+  sets a **"be at school by"** time; the app computes **each child's pickup time**
+  by estimating travel between homes and working backward from arrival. Parents
+  see the pickup time on their child's card.
+- Same flow in the **app** (new *Arrange order & pickup times* screen) and the
+  **web dashboard**. New endpoint: `POST /admin/arrange`; `POST /admin/children`
+  no longer needs a `routeId`. Super-admin school access/subscription controls
+  are unchanged.
+
 ## 0.3.0 — live backend
 
 **This is the first build that talks to the real server** (not the built-in
