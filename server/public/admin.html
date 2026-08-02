@@ -95,6 +95,10 @@
       .link-btn { background: none; padding: 0; color: var(--primary); font-size: 12px; font-weight: 700; }
       .children-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       @media (max-width: 760px) { .children-grid { grid-template-columns: 1fr; } }
+      .arrange-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+      .arrange-bar label { font-size: 14px; color: #334155; }
+      .ord-btn { border: 0; background: none; cursor: pointer; font-size: 14px; color: #2563eb; padding: 0 3px; }
+      .ord-btn:disabled { color: #cbd5e1; cursor: default; }
       #childMap, #schoolMap { height: 240px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 10px; }
       .pin-hint { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
       .del-btn { background: none; color: var(--danger); padding: 0; font-size: 12px; font-weight: 700; }
@@ -146,29 +150,29 @@
             <button id="addBusBtn" class="btn-primary">Add bus</button>
             <div id="busMsg" class="msg"></div>
           </div>
-          <div class="card">
-            <h3>Add route</h3>
-            <input id="routeName" placeholder="Route name" />
-            <textarea id="routeStops" rows="5" placeholder="One stop per line:&#10;Name, lat, lng, HH:MM, minutesFromPrev&#10;AUB Main Gate, 33.900, 35.480, 07:00, 0&#10;Bliss Street, 33.898, 35.482, 07:05, 5"></textarea>
-            <button id="addRouteBtn" class="btn-primary">Add route</button>
-            <div id="routeMsg" class="msg"></div>
-          </div>
         </div>
 
         <div class="card" style="margin-top:20px">
-          <h3 style="margin:0 0 12px">Children</h3>
+          <h3 style="margin:0 0 12px">Children · pickup order &amp; times</h3>
+          <div class="arrange-bar">
+            <label>Be at school by
+              <input id="arriveBy" value="07:30" placeholder="07:30" style="width:80px;text-align:center;margin:0 0 0 6px" />
+            </label>
+            <button id="arrangeBtn" class="btn-primary" style="padding:9px 16px;margin:0">Save order &amp; times</button>
+            <span id="arrangeMsg" class="msg" style="margin:0"></span>
+          </div>
           <div class="children-grid">
             <div>
               <table>
-                <thead><tr><th>Name</th><th>Route</th><th>Pickup</th><th>Parent</th><th></th></tr></thead>
-                <tbody id="childRows"><tr><td colspan="5" class="src">No children yet.</td></tr></tbody>
+                <thead><tr><th>Order</th><th>Name</th><th>Home</th><th>Pickup</th><th>Parent</th><th></th></tr></thead>
+                <tbody id="childRows"><tr><td colspan="6" class="src">No children yet.</td></tr></tbody>
               </table>
+              <div class="src" style="margin-top:8px">Use ▲▼ to set the pickup order (first at the top), then <em>Save order &amp; times</em>.</div>
             </div>
             <div>
               <h3 style="font-size:14px">Add a child</h3>
               <input id="cName" placeholder="Child full name" />
               <input id="cGrade" placeholder="Grade (e.g. Grade 3)" />
-              <select id="cRoute"></select>
               <input id="cParent" placeholder="Parent phone (their login)" inputmode="tel" />
               <input id="cAddress" placeholder="Home address (label)" />
               <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -307,10 +311,6 @@
           .filter((x) => !x.busId)
           .map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>')
           .join('') || '<option value="">(every route has a bus)</option>';
-        // Children can go on any route.
-        $('cRoute').innerHTML = overview.routes
-          .map((x) => '<option value="' + x.id + '">' + esc(x.name) + '</option>')
-          .join('') || '<option value="">(add a route first)</option>';
         return true;
       }
 
@@ -333,21 +333,32 @@
         $('cPin').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
       }
 
-      async function loadChildren() {
-        const r = await api('/admin/children');
-        if (!r.ok) return;
-        const kids = await r.json();
+      // Ordered list of the school's kids (server returns them in pickup order).
+      let kids = [];
+      function renderChildren() {
         $('childRows').innerHTML = kids.length
-          ? kids.map((c) =>
+          ? kids.map((c, i) =>
               '<tr>' +
+              td(
+                '<button class="ord-btn" data-up="' + i + '"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+                '<strong>' + (i + 1) + '</strong>' +
+                '<button class="ord-btn" data-down="' + i + '"' + (i === kids.length - 1 ? ' disabled' : '') + '>▼</button>'
+              ) +
               td('<strong>' + esc(c.name) + '</strong><div class="src">' + esc(c.grade || '') + '</div>') +
-              td(esc(c.routeName || '—')) +
               td('<div class="src">' + esc(c.address || (c.location ? c.location.latitude.toFixed(4) + ', ' + c.location.longitude.toFixed(4) : '—')) + '</div>') +
+              td('<strong>' + esc(c.scheduledTime || '—') + '</strong>') +
               td('<div class="src">' + esc(c.parentPhone || '—') + '</div>') +
               td('<button class="del-btn" data-del="' + c.id + '">remove</button>') +
               '</tr>'
             ).join('')
-          : '<tr><td colspan="5" class="src">No children yet.</td></tr>';
+          : '<tr><td colspan="6" class="src">No children yet.</td></tr>';
+      }
+
+      async function loadChildren() {
+        const r = await api('/admin/children');
+        if (!r.ok) return;
+        kids = await r.json();
+        renderChildren();
       }
 
       $('addChildBtn').onclick = async () => {
@@ -358,7 +369,6 @@
           body: JSON.stringify({
             name: $('cName').value,
             grade: $('cGrade').value,
-            routeId: $('cRoute').value,
             parentPhone: $('cParent').value,
             address: $('cAddress').value,
             latitude: pin.lat,
@@ -378,6 +388,16 @@
       };
 
       $('childRows').addEventListener('click', async (e) => {
+        const up = e.target.closest('[data-up]');
+        const down = e.target.closest('[data-down]');
+        if (up || down) {
+          const i = parseInt((up || down).dataset[up ? 'up' : 'down'], 10);
+          const j = up ? i - 1 : i + 1;
+          if (j < 0 || j >= kids.length) return;
+          const t = kids[i]; kids[i] = kids[j]; kids[j] = t;
+          renderChildren();
+          return;
+        }
         const btn = e.target.closest('[data-del]');
         if (!btn) return;
         if (!confirm('Remove this child?')) return;
@@ -385,6 +405,29 @@
         if (r.ok) { await refreshOverview(); await loadChildren(); }
         else alert('Remove failed');
       });
+
+      // Save the on-screen order and compute each child's pickup time.
+      $('arrangeBtn').onclick = async () => {
+        setMsg('arrangeMsg', '', '');
+        if (!kids.length) return setMsg('arrangeMsg', 'Add children first.', 'err');
+        const r = await api('/admin/arrange', {
+          method: 'POST',
+          body: JSON.stringify({
+            childIds: kids.map((c) => c.id),
+            schoolArrival: ($('arriveBy').value || '07:30').trim(),
+          }),
+        });
+        if (r.ok) {
+          const schedule = await r.json();
+          const timeById = {};
+          schedule.forEach((s) => { timeById[s.childId] = s.scheduledTime; });
+          kids = kids.map((c) => ({ ...c, scheduledTime: timeById[c.id] || c.scheduledTime }));
+          renderChildren();
+          setMsg('arrangeMsg', 'Saved — pickup times updated.', 'ok');
+        } else {
+          setMsg('arrangeMsg', (await r.json()).message || 'Failed', 'err');
+        }
+      };
 
       // Free geocoder (OpenStreetMap) — jumps the map near a typed place; the
       // exact pin is still set by tapping. Scoped to Lebanon.
@@ -442,35 +485,6 @@
         }
       };
 
-      $('addRouteBtn').onclick = async () => {
-        setMsg('routeMsg', '', '');
-        const stops = $('routeStops').value
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean)
-          .map((line) => {
-            const [name, lat, lng, time, mins] = line.split(',').map((x) => x.trim());
-            return {
-              name,
-              latitude: parseFloat(lat),
-              longitude: parseFloat(lng),
-              scheduledTime: time || '',
-              travelMinutesFromPrev: mins ? parseInt(mins, 10) : 0,
-            };
-          });
-        const r = await api('/admin/routes', {
-          method: 'POST',
-          body: JSON.stringify({ name: $('routeName').value, stops }),
-        });
-        if (r.ok) {
-          setMsg('routeMsg', 'Route added and now tracking.', 'ok');
-          $('routeName').value = $('routeStops').value = '';
-          await refreshOverview();
-          await tick();
-        } else {
-          setMsg('routeMsg', (await r.json()).message || 'Failed', 'err');
-        }
-      };
 
       const setMsg = (id, text, cls) => { const el = $(id); el.textContent = text; el.className = 'msg ' + cls; };
 
