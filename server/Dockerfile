@@ -1,6 +1,11 @@
 # BusMapp API container. Build context is the server/ directory.
 FROM node:20-alpine
 
+# Prisma's query engine needs OpenSSL at runtime; the minimal Alpine image
+# omits it, which crashes the app on its first database call. libc6-compat
+# covers glibc-linked binaries.
+RUN apk add --no-cache openssl libc6-compat
+
 WORKDIR /app
 
 # Install dependencies (incl. dev — Prisma CLI + ts-node are used at start for
