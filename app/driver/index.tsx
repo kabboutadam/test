@@ -17,7 +17,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,18 +25,14 @@ import * as api from '@/api/client';
 import { config } from '@/api/config';
 import { DriverClient } from '@/api/driverClient';
 import { LatLng, Route } from '@/models/types';
+import { useAuth } from '@/store/AuthContext';
 import { lerpLatLng } from '@/services/geo';
 import { colors, radius, spacing } from '@/theme/theme';
 
 type Mode = 'simulate' | 'device';
-const DEMO_DRIVER_PHONE = '+961 3 000 111'; // bus_a driver → Route A
-
 export default function DriverScreen() {
   const insets = useSafeAreaInsets();
-
-  // Driver auth (separate from the parent session).
-  const [token, setToken] = useState<string | null>(null);
-  const [routeId, setRouteId] = useState<string | null>(null);
+  const { token, routeId, signOut } = useAuth();
 
   return (
     <>
@@ -47,82 +42,12 @@ export default function DriverScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
       >
         {token && routeId ? (
-          <Streamer token={token} routeId={routeId} onSignOut={() => { setToken(null); setRouteId(null); }} />
+          <Streamer token={token} routeId={routeId} onSignOut={signOut} />
         ) : (
-          <DriverSignIn
-            onSignedIn={(t, r) => {
-              setToken(t);
-              setRouteId(r);
-            }}
-          />
+          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
         )}
       </ScrollView>
     </>
-  );
-}
-
-function DriverSignIn({ onSignedIn }: { onSignedIn: (token: string, routeId: string) => void }) {
-  const [step, setStep] = useState<'phone' | 'code'>('phone');
-  const [phone, setPhone] = useState(DEMO_DRIVER_PHONE);
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function send() {
-    setBusy(true);
-    setError(null);
-    try {
-      const { devCode } = await api.requestOtp(phone);
-      if (devCode) setCode(devCode);
-      setStep('code');
-    } catch {
-      setError('Network error — is the server running?');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function verify() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await api.verifyOtp(phone, code.trim());
-      if (res.role !== 'driver' || !res.routeId) {
-        setError('This number is not registered as a driver.');
-        return;
-      }
-      onSignedIn(res.token, res.routeId);
-    } catch {
-      setError('Invalid or expired code.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <View style={{ gap: spacing.md }}>
-      <Text style={styles.sectionTitle}>Driver sign in</Text>
-      <Text style={styles.hint}>
-        Sign in with your driver phone. You can only stream your assigned bus.
-      </Text>
-      <TextInput
-        style={styles.input}
-        value={step === 'phone' ? phone : code}
-        onChangeText={step === 'phone' ? setPhone : setCode}
-        placeholder={step === 'phone' ? '+961 …' : '6-digit code'}
-        keyboardType={step === 'phone' ? 'phone-pad' : 'number-pad'}
-        editable={!busy}
-        autoFocus
-      />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Pressable style={[styles.cta, busy && styles.ctaDisabled]} onPress={step === 'phone' ? send : verify} disabled={busy}>
-        {busy ? (
-          <ActivityIndicator color={colors.onPrimary} />
-        ) : (
-          <Text style={styles.ctaText}>{step === 'phone' ? 'Send code' : 'Verify'}</Text>
-        )}
-      </Pressable>
-    </View>
   );
 }
 

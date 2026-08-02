@@ -43,12 +43,16 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (!config.useBackend || !ready) return;
     const onLogin = segments[0] === 'login';
     const inSchool = segments[0] === 'school';
+    const inDriver = segments[0] === 'driver';
     if (!token) {
       if (!onLogin) router.replace('/login');
     } else if (role === 'operator') {
       // Schools live in the /school area, not the parent tabs.
       if (!inSchool) router.replace('/school');
-    } else if (onLogin || inSchool) {
+    } else if (role === 'driver') {
+      // Drivers go straight to the streaming screen.
+      if (!inDriver) router.replace('/driver');
+    } else if (onLogin || inSchool || inDriver) {
       router.replace('/');
     }
   }, [token, ready, role, segments, router]);

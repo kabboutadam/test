@@ -126,17 +126,6 @@ export default function AccountScreen() {
         </View>
       </Pressable>
 
-      <Link href="/driver" asChild>
-        <Pressable style={styles.row}>
-          <Ionicons name="bus" size={20} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{t('account.driverMode')}</Text>
-            <Text style={styles.rowSub}>{t('account.driverModeSub')}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </Pressable>
-      </Link>
-
       {config.useBackend && (
         <Pressable style={styles.row} onPress={signOut}>
           <Ionicons name="log-out-outline" size={20} color={colors.danger} />
