@@ -95,7 +95,7 @@
       .link-btn { background: none; padding: 0; color: var(--primary); font-size: 12px; font-weight: 700; }
       .children-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       @media (max-width: 760px) { .children-grid { grid-template-columns: 1fr; } }
-      #childMap { height: 240px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 10px; }
+      #childMap, #schoolMap { height: 240px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 10px; }
       .pin-hint { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
       .del-btn { background: none; color: var(--danger); padding: 0; font-size: 12px; font-weight: 700; }
     </style>
@@ -181,6 +181,34 @@
       </main>
     </div>
 
+    <div id="platform" class="hidden">
+      <header>
+        <div>
+          <h1>BusMapp Platform</h1>
+          <div class="sub">Super-admin · onboard schools across Lebanon</div>
+        </div>
+        <button id="signOutP" class="btn-ghost">Sign out</button>
+      </header>
+      <main>
+        <div class="card">
+          <h3 style="margin:0 0 12px">Add a school</h3>
+          <div class="children-grid">
+            <div>
+              <input id="sName" placeholder="School name" />
+              <div id="schoolMap"></div>
+              <div class="pin-hint">Tap the map to place the school. <span id="sPin">no pin yet</span></div>
+              <button id="addSchoolBtn" class="btn-primary">Create school (14-day trial)</button>
+              <div id="schoolMsg" class="msg"></div>
+            </div>
+            <div>
+              <h3 style="font-size:14px">Schools</h3>
+              <div id="schoolList"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
     <script>
       const TOKEN_KEY = 'busmapp.admin.token';
       let token = localStorage.getItem(TOKEN_KEY);
@@ -220,10 +248,13 @@
             });
             if (!r.ok) throw new Error('bad code');
             const j = await r.json();
-            if (j.role !== 'operator') throw new Error('not an operator account');
+            if (j.role !== 'operator' && j.role !== 'superadmin') {
+              throw new Error('not an operator account');
+            }
             token = j.token;
             localStorage.setItem(TOKEN_KEY, token);
-            start();
+            if (j.role === 'superadmin') startAdmin();
+            else start();
           }
         } catch (e) {
           $('loginError').textContent =
@@ -233,13 +264,16 @@
         }
       };
 
-      $('signOut').onclick = () => {
+      function signOutAll() {
         localStorage.removeItem(TOKEN_KEY);
         token = null;
         if (timer) clearInterval(timer);
         $('app').classList.add('hidden');
+        $('platform').classList.add('hidden');
         $('login').classList.remove('hidden');
-      };
+      }
+      $('signOut').onclick = signOutAll;
+      $('signOutP').onclick = signOutAll;
 
       async function start() {
         const ok = await refreshOverview();
@@ -450,7 +484,91 @@
       const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
       const label = (s) => ({ en_route: 'En route', at_stop: 'At stop', completed: 'Completed', not_started: 'Not started' }[s] || s);
 
-      if (token) start();
+      // --- Super-admin (platform) ---
+      let schoolMap = null, schoolMarker = null, schoolPin = null;
+      async function startAdmin() {
+        $('login').classList.add('hidden');
+        $('app').classList.add('hidden');
+        $('platform').classList.remove('hidden');
+        initSchoolMap();
+        await loadSchools();
+      }
+      function initSchoolMap() {
+        if (schoolMap) { setTimeout(() => schoolMap.invalidateSize(), 100); return; }
+        schoolMap = L.map('schoolMap').setView([33.85, 35.86], 8);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(schoolMap);
+        schoolMap.on('click', (e) => {
+          schoolPin = { lat: e.latlng.lat, lng: e.latlng.lng };
+          if (schoolMarker) schoolMarker.setLatLng(e.latlng);
+          else schoolMarker = L.marker(e.latlng).addTo(schoolMap);
+          $('sPin').textContent = schoolPin.lat.toFixed(5) + ', ' + schoolPin.lng.toFixed(5);
+        });
+        setTimeout(() => schoolMap.invalidateSize(), 200);
+      }
+      async function loadSchools() {
+        const r = await api('/platform/schools');
+        if (!r.ok) return;
+        const schools = await r.json();
+        const pill = (s) => s === 'active' ? 'en_route' : (s === 'trial' ? 'at_stop' : 'completed');
+        $('schoolList').innerHTML = schools.length
+          ? schools.map((s) =>
+              '<div class="card" style="margin-bottom:10px;padding:12px">' +
+              '<strong>' + esc(s.name) + '</strong> <span class="pill ' + pill(s.subscriptionStatus) + '">' + esc(s.subscriptionStatus) + '</span>' +
+              '<div class="src">' + s.counts.routes + ' routes · ' + s.counts.children + ' kids · ' + s.counts.operators + ' logins</div>' +
+              '<div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">' +
+                '<button class="link-btn" data-op="' + s.id + '">+ Add login</button>' +
+                (s.subscriptionStatus === 'active'
+                  ? '<button class="link-btn" data-sub="' + s.id + '" data-status="expired">Suspend</button>'
+                  : '<button class="link-btn" data-sub="' + s.id + '" data-status="active">Activate</button>') +
+              '</div></div>'
+            ).join('')
+          : '<div class="src">No schools yet — create your first on the left.</div>';
+      }
+      $('addSchoolBtn').onclick = async () => {
+        setMsg('schoolMsg', '', '');
+        if (!schoolPin) return setMsg('schoolMsg', 'Tap the map to place the school first.', 'err');
+        const r = await api('/platform/schools', {
+          method: 'POST',
+          body: JSON.stringify({ name: $('sName').value, latitude: schoolPin.lat, longitude: schoolPin.lng }),
+        });
+        if (r.ok) {
+          setMsg('schoolMsg', 'School created (14-day trial). Add a login for them.', 'ok');
+          $('sName').value = ''; schoolPin = null; $('sPin').textContent = 'no pin yet';
+          if (schoolMarker) { schoolMap.removeLayer(schoolMarker); schoolMarker = null; }
+          await loadSchools();
+        } else {
+          setMsg('schoolMsg', (await r.json()).message || 'Failed', 'err');
+        }
+      };
+      $('schoolList').addEventListener('click', async (e) => {
+        const opBtn = e.target.closest('[data-op]');
+        const subBtn = e.target.closest('[data-sub]');
+        if (opBtn) {
+          const name = prompt('School manager name'); if (!name) return;
+          const phone = prompt('Their phone number (this is their login)'); if (!phone) return;
+          const r = await api('/platform/schools/' + opBtn.dataset.op + '/operators', {
+            method: 'POST', body: JSON.stringify({ name, phone }),
+          });
+          if (r.ok) { alert('Login added. They can now sign in with that number.'); loadSchools(); }
+          else alert((await r.json()).message || 'Failed');
+        } else if (subBtn) {
+          const r = await api('/platform/schools/' + subBtn.dataset.sub + '/subscription', {
+            method: 'PATCH', body: JSON.stringify({ status: subBtn.dataset.status }),
+          });
+          if (r.ok) loadSchools(); else alert('Failed');
+        }
+      });
+
+      // On reload we have a token but not the role — ask the server, then route.
+      async function boot() {
+        const r = await api('/auth/me');
+        if (!r.ok) return signOutAll();
+        const me = await r.json();
+        if (me.role === 'superadmin') startAdmin();
+        else if (me.role === 'operator') start();
+        else signOutAll();
+      }
+      if (token) boot();
     </script>
   </body>
 </html>

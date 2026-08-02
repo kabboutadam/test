@@ -21,6 +21,21 @@ services:
         fromDatabase:
           name: busmapp-db
           property: connectionString
+      # Your phone(s) as platform owner — you enter this in the Render dashboard
+      # (comma-separated). Only these numbers can create schools + logins.
+      - key: SUPERADMIN_PHONES
+        sync: false
+      # SMS for login codes. 'console' returns the code in the response — fine for
+      # YOUR first smoke test, but switch to 'twilio' (+ the vars below) before
+      # inviting real schools/parents, or anyone could log in as a known number.
+      - key: SMS_PROVIDER
+        value: console
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM
+        sync: false
 
 databases:
   - name: busmapp-db

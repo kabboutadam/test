@@ -10,6 +10,7 @@ and ships configs for **Render**, **Railway**, and **Fly.io** — pick one.
 | --- | --- |
 | `PORT` | Set by the platform; the app reads it (local default 3000). |
 | `JWT_SECRET` | Signing secret for auth tokens. **Use a strong random value.** |
+| `SUPERADMIN_PHONES` | Comma-separated platform-owner phone(s) — **your number**. Only these can create schools + logins. |
 | `USE_PRISMA` | `true` to use Postgres (recommended in prod), else in-memory. |
 | `DATABASE_URL` | Postgres connection string (when `USE_PRISMA=true`). |
 | `SEED_ON_START` | `true` to load the Beirut demo data on boot (idempotent). |
@@ -70,27 +71,40 @@ Get the URL with `fly info` (e.g. `https://busmapp-api.fly.dev`).
 
 ---
 
-## After it's live
+## After it's live — onboard your first school (all clickable)
 
-1. **Verify:** `curl https://<your-url>/api/health` → `{"ok":true}`; open
-   `https://<your-url>/admin.html` and sign in as an operator
-   (`+961 3 999 000`).
-2. **Point the app at it** — in `app.json`:
+1. **Verify:** `curl https://<your-url>/api/health` → `{"ok":true}`.
+2. **Sign in as yourself (super-admin):** open `https://<your-url>/admin.html`
+   and sign in with the phone you put in `SUPERADMIN_PHONES`. You get the
+   **Platform** panel.
+   - In console-SMS mode the code auto-fills; with Twilio it's texted to you.
+3. **Create a school:** type its name, **tap the map** to drop it anywhere in
+   Lebanon, Create. Then **+ Add login** and enter the school manager's phone.
+4. **The school takes over (on their phone or the dashboard):** they sign in
+   with that phone, tap **New route** (just a name), then **Add child** for each
+   kid — dropping a pin on the home and entering the parent's phone.
+5. **Parents** sign in with the phone the school entered and track their kid.
+   Movement is simulated per route until a driver streams real GPS, so tracking
+   works immediately.
+6. **Point the app at your server** — in `app.json`:
    ```json
    "extra": {
      "useBackend": true,
      "apiBaseUrl": "https://<your-url>"
    }
    ```
-   Then rebuild for TestFlight (`docs/TESTFLIGHT.md`). The app will show the
-   phone-OTP login and stream live data.
-3. **SMS for OTP:** set `SMS_PROVIDER=twilio` + the `TWILIO_*` vars so testers
-   receive their code by text. With the default `console` provider no text is
-   sent (the code is only logged / returned in dev), so real testers can't log
-   in. To add a Lebanese aggregator instead, implement `SmsProvider` against
-   their HTTP API and select it in `createSmsProvider`.
-4. **Push delivery:** the host must allow outbound HTTPS to `exp.host` (most do
-   by default). Remote push also needs the EAS `projectId` + a physical device.
+   Then rebuild for TestFlight (`docs/TESTFLIGHT.md`). The app now shows the
+   phone-OTP login and routes each role (parent / school) to the right place.
+
+> ⚠️ **Before inviting real people, switch SMS to Twilio.** With
+> `SMS_PROVIDER=console` the login code is returned in the API response, so
+> anyone could log in as a known number. Set `SMS_PROVIDER=twilio` +
+> `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` (a real Twilio
+> number) so codes are texted. For a Lebanese aggregator instead, implement
+> `SmsProvider` against their HTTP API and select it in `createSmsProvider`.
+
+**Push delivery:** the host must allow outbound HTTPS to `exp.host` (most do by
+default). Remote push also needs the EAS `projectId` + a physical device.
 
 ## Notes
 
