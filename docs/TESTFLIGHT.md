@@ -4,13 +4,16 @@ This gets the iOS app onto TestFlight so you and other testers can install it on
 real iPhones. The build and upload run **on your Mac/PC**, not from the cloud —
 they need an interactive Apple login (2FA) and Expo's build servers.
 
-> **First build recommendation:** ship in **simulator mode** (the current
-> default, `app.json → expo.extra.useBackend = false`). The app is then fully
-> self-contained — buses move on their own, no login, no server needed — so
-> testers get the whole parent experience the moment they open it. Switch to
-> backend mode only after you've deployed the server somewhere public (see the
-> end of this doc). On a real iPhone build the map uses **Apple Maps** and works
-> with no API key.
+> **Current state (v0.3.1):** the app is in **backend mode**
+> (`app.json → expo.extra.useBackend = true`, `apiBaseUrl` →
+> `https://busmapp-api.onrender.com`). Testers sign in with a phone number and
+> see live data, so **the server must be deployed and reachable first** and a
+> school + kids must exist on it — otherwise testers hit a dead login. On a real
+> iPhone the map uses **Apple Maps** (no API key needed).
+>
+> This 0.3.1 build carries **native changes** (background driver location), so it
+> must be a full build — it can't ship as an OTA update. Later JS-only changes go
+> out over the air (see §5).
 
 ## 0. Prerequisites (one time)
 
@@ -22,6 +25,27 @@ they need an interactive Apple login (2FA) and Expo's build servers.
       npm install -g eas-cli
       eas login
       ```
+
+## 0.5 Get the code onto your Mac (every time)
+
+The build runs from a **local clone on your Mac** — this project lives on GitHub
+(and in Claude Code on the web), not on your machine by default. If you see
+`fatal: not a git repository`, you're in the wrong folder. Clone it once, then
+just `git pull` before each build:
+
+```bash
+cd ~
+git clone https://github.com/kabboutadam/test.git busmapp
+cd busmapp
+git checkout claude/school-bus-tracking-lebanon-6oxhjg
+npm install
+```
+
+Next time, skip the clone — `cd ~/busmapp` and `git pull origin claude/school-bus-tracking-lebanon-6oxhjg`.
+
+> **Paste commands one line at a time, without the `# …` notes.** In zsh a `#`
+> on the command line is **not** a comment — pasting `eas build … # ~15 min`
+> makes zsh choke with `Unexpected arguments: #, …`. Copy only the command.
 
 ## 1. Link the project to EAS (one time — already done)
 
@@ -73,16 +97,38 @@ Export compliance is pre-answered (`ITSAppUsesNonExemptEncryption: false` in
 Testers install the **TestFlight** app from the App Store, then open your invite
 (or link) to install BusMapp.
 
+### Invite message (paste the link, then send)
+
+> **You're invited to test BusMapp 🚌**
+> 1. On your iPhone, install **TestFlight** from the App Store.
+> 2. Tap this link, then **Accept → Install**: **PASTE_TESTFLIGHT_LINK_HERE**
+> 3. Open **BusMapp** and sign in with your **phone number** — you'll get an SMS
+>    code. Your role is set automatically:
+>    - **Parent** → track your child's bus (live map, "stops away", pickup time).
+>    - **School** → add kids with their home pin + parent's phone, group into
+>      buses, arrange order, set arrival time; pickup times fill in automatically.
+>    - **Driver** → Driver mode → **Device GPS → Start route**, allow location
+>      (**Always Allow** so it works with the phone locked), mount the phone,
+>      **Stop** when done.
+>
+> If the first action seems slow, the server was asleep — wait ~30–60s and retry.
+> Send feedback right in TestFlight (screenshot → share).
+
+Note: for anything to appear, the **school must be set up on the server first**
+(super-admin creates the school + a school login; the school adds kids).
+
 ## 5. Shipping updates
 
 **EAS Update is wired and ready** (`expo-updates` installed; `app.json` has
 `runtimeVersion` + a real `updates.url`; `eas.json` build profiles have channels
 `development`/`preview`/`production`). No further setup needed.
 
-> **Important:** OTA only reaches a build that was **compiled with `updates.url`
-> present.** Builds 1–9 predate this, so they can't receive OTA — the first
-> OTA-capable binary is **build 10 (v0.2.0)**. Once testers are on build 10,
-> JS-only changes reach them over the air.
+> **Important:** OTA only reaches a build with a **matching `runtimeVersion`**
+> (policy = `appVersion`), so an update lands only on builds of the **same app
+> version**. The current baseline is **v0.3.1** — once testers are on the 0.3.1
+> build, JS-only changes reach them over the air. Bumping `expo.version` again
+> starts a new baseline and requires a fresh build for testers to keep getting
+> updates.
 
 - **JS-only changes** (most of this app — screens, logic, styles): push instantly
   to installed TestFlight builds, no rebuild, no re-review:
@@ -130,6 +176,19 @@ dashboard) instead of the built-in simulator:
   (`autoIncrement` bumps the number) and submit that.
 - **New build doesn't include your latest changes:** the build runs from your
   local working copy — `git pull` the branch on your Mac before `eas build`.
+- **`fatal: not a git repository`:** you're not inside the project folder. Clone
+  it and `cd` in — see §0.5.
+- **`Unexpected arguments: #, …` from `eas`/`git`:** you pasted an inline `# …`
+  note with the command. zsh doesn't treat `#` as a comment on the command line
+  — paste only the command.
+- **`eas build` fails to start / wrong project:** run `eas login` as the Expo
+  account that owns this app's `projectId` (in `app.json`). `eas whoami` shows
+  who you're logged in as.
+- **Driver location stops when the phone locks:** the driver granted only "While
+  Using." Have them open iOS **Settings → BusMapp → Location → Always** (the app
+  also prompts for this). With "While Using," background tracking pauses when the
+  app leaves the foreground; the Driver screen's status line says which mode is
+  active.
 - **Build fails on `react-native-maps` with the New Architecture:** as a
   fallback set `expo.newArchEnabled = false` in `app.json` and rebuild.
 - **"Invalid bundle identifier / already exists":** pick a unique
