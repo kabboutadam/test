@@ -1,35 +1,31 @@
 # Release notes
 
-## Unreleased — background driver tracking
+## 0.3.1 — simpler school setup, multiple buses, background driver tracking
 
-- **The bus keeps sharing its location with the app in the background.** Driver
-  mode's "Device GPS" now uses an OS background-location task, so tracking
-  continues while the phone is locked or mounted on the dash — the driver taps
-  **Start route** once and can pocket/mount the phone. Tap **Stop** (or sign out)
-  to end it. An Android foreground-service notification shows while it's active.
-- New HTTP ingest endpoint `POST /api/driver/positions` (driver token, route-
-  scoped) that the background task posts to; same authorization and pipeline as
-  the live `driver:gps` socket. 31/31 isolation checks (added driver-ingest
-  auth: own route OK, other route 403, parent 403).
-- **Requires a new native build** (adds background-location permission + iOS
-  `location` background mode) — this one can't ship as an OTA update.
+**Schools set up pickups by adding kids, not building routes.**
+- **Add a child** with their **home pin** + **parent's phone** — no route to
+  pick. **Arrange** the kids in pickup order and set a **"be at school by"** time;
+  the app computes **each child's pickup time** from **real road driving times**
+  (OSRM), working backward from arrival. Falls back to a distance estimate if
+  routing is unavailable, and tells you which was used.
+- **Multiple buses** — a school can run several, each its own list with its own
+  order, arrival time, and times. Add a bus, pick which bus a child rides, move
+  kids between buses. Same flow in the **app** and the **web dashboard**.
 
-## Unreleased — simpler school setup
+**Drivers are tracked in the background.**
+- Driver mode's **Device GPS** now keeps sharing the bus's location with the app
+  **locked or backgrounded** — the driver taps **Start route** once and mounts
+  the phone; **Stop** (or sign out) ends it. Android shows a "sharing location"
+  notification while active; iOS asks for **Always Allow** to keep running locked.
 
-- **No more route-building for schools.** A school now just adds each child with
-  their **home address/pin** and the **parent's phone** — no route to pick.
-- **Arrange by order, times are automatic.** The school orders the kids (▲▼) and
-  sets a **"be at school by"** time; the app computes **each child's pickup time**
-  from **real road driving times** between homes (OSRM), working backward from
-  arrival — with a distance-estimate fallback if routing is unavailable, and it
-  tells you which was used. Parents see the pickup time on their child's card.
-- **Multiple buses.** A school can run several buses — each its own pickup list
-  with its own order, arrival time, and computed times. Add a bus, choose which
-  bus a child rides, and move kids between buses.
-- Same flow in the **app** (per-bus *Arrange* + *Add bus* screens) and the
-  **web dashboard** (kids grouped by bus). Endpoints: `POST /admin/arrange` and
-  add/move-child take an optional `routeId`; `POST /admin/children` no longer
-  needs one. Super-admin school access/subscription controls are unchanged.
+**Under the hood.** New endpoints — `POST /admin/arrange`, optional `routeId` on
+add/move-child, and `POST /api/driver/positions` (the background task's ingest,
+same auth as the `driver:gps` socket). 31/31 tenant-isolation checks. Super-admin
+school access/subscription controls unchanged.
+
+> **This build carries native changes** (background-location permission + iOS
+> `location` background mode), so it's a fresh build, not an OTA update. After
+> it's installed, JS-only tweaks can ship over-the-air again with `eas update`.
 
 ## 0.3.0 — live backend
 
