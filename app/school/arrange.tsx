@@ -70,14 +70,18 @@ export default function ArrangeScreen() {
     setBusy(true);
     setNote(null);
     try {
-      const result = await api.adminArrange(token, {
+      const { mode, schedule } = await api.adminArrange(token, {
         routeId: routeId || undefined,
         childIds: rows.map((r) => r.id),
         schoolArrival: arrival.trim() || '07:30',
       });
-      const timeById = new Map(result.map((r) => [r.childId, r.scheduledTime]));
+      const timeById = new Map(schedule.map((r) => [r.childId, r.scheduledTime]));
       setRows((prev) => prev.map((r) => ({ ...r, scheduledTime: timeById.get(r.id) ?? r.scheduledTime })));
-      setNote('Order saved — pickup times updated.');
+      setNote(
+        mode === 'road'
+          ? 'Saved — pickup times from live road data.'
+          : 'Saved — times estimated from distance (road data unavailable).',
+      );
     } catch {
       setNote('Could not save. Check the time is HH:MM and try again.');
     } finally {

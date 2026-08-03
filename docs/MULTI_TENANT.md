@@ -84,9 +84,10 @@ child's **pickup time**. Three steps:
 2. **Arrange the order** — put the kids in the sequence the bus collects them
    (first at the top) with the ▲▼ controls.
 3. **Set "be at school by"** (e.g. `07:30`) and save. The app times every
-   pickup — working backward from the arrival time and estimating travel between
-   homes from the distance between pins — and each parent sees their child's
-   pickup time.
+   pickup — working backward from the arrival time, using **real road driving
+   times** between homes (OSRM; falls back to a distance estimate if routing is
+   unavailable, and tells you which was used) — and each parent sees their
+   child's pickup time.
 
 Behind the scenes: `POST /admin/children` (no `routeId` needed) drops the home
 pin onto the school's auto-created pickup route and links/creates the parent by

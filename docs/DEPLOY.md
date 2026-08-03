@@ -16,6 +16,8 @@ and ships configs for **Render**, **Railway**, and **Fly.io** — pick one.
 | `SEED_ON_START` | `true` to load the Beirut demo data on boot (idempotent). |
 | `SMS_PROVIDER` | `console` (default, logs code) or `twilio` (real texts). |
 | `TWILIO_*` | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM` for Twilio. |
+| `OSRM_URL` | Road-routing server for pickup-time calc. Default `https://router.project-osrm.org` (demo — rate-limited; self-host for prod). Empty = always use the distance estimate. Host must be reachable (egress). |
+| `OSRM_TIMEOUT_MS` | Per-request routing timeout before the estimate fallback (default `4000`). |
 
 On boot with `USE_PRISMA=true`, the container runs `prisma db push` to sync the
 schema, then seeds if `SEED_ON_START=true` (see `server/scripts/start.sh`).

@@ -139,11 +139,12 @@ async function run() {
   check('child added with no route (auto pickup list)', autoChild?.id?.startsWith('child_') && !!autoChild.routeId);
 
   // Arrange the pickup order and compute times.
-  const schedule = (await api('/admin/arrange', {
+  const arranged = (await api('/admin/arrange', {
     method: 'POST', token: opA,
     body: { childIds: [autoChild.id, childA.id], schoolArrival: '07:30' },
   })).data;
-  check('arrange returns computed pickup times', Array.isArray(schedule) && schedule.length >= 1 && /^\d{2}:\d{2}$/.test(schedule[0].scheduledTime));
+  check('arrange returns computed pickup times', arranged?.schedule?.length >= 1 && /^\d{2}:\d{2}$/.test(arranged.schedule[0].scheduledTime));
+  check('arrange reports its timing mode', arranged?.mode === 'road' || arranged?.mode === 'estimate');
 
   // Multiple buses: create a second list, add a kid to it, arrange just it.
   const bus2 = (await api('/admin/routes', { method: 'POST', token: opA, body: { name: 'Bus 2' } })).data;
@@ -157,7 +158,7 @@ async function run() {
     method: 'POST', token: opA,
     body: { routeId: bus2.id, childIds: [bus2Child.id], schoolArrival: '08:00' },
   })).data;
-  check('arrange targets a single bus', Array.isArray(sched2) && sched2.length === 1 && /^\d{2}:\d{2}$/.test(sched2[0].scheduledTime));
+  check('arrange targets a single bus', sched2?.schedule?.length === 1 && /^\d{2}:\d{2}$/.test(sched2.schedule[0].scheduledTime));
 
   // Move a child from their bus onto bus 2.
   await api('/admin/children/' + autoChild.id, { method: 'PATCH', token: opA, body: { routeId: bus2.id } });
@@ -215,7 +216,7 @@ async function run() {
 }
 
 const server = spawn('node', ['dist/main.js'], {
-  env: { ...process.env, PORT, JWT_SECRET: 'test-secret', SUPERADMIN_PHONES: ADMIN_PHONE, SMS_PROVIDER: 'console', USE_PRISMA: '' },
+  env: { ...process.env, PORT, JWT_SECRET: 'test-secret', SUPERADMIN_PHONES: ADMIN_PHONE, SMS_PROVIDER: 'console', USE_PRISMA: '', OSRM_URL: '' },
   stdio: ['ignore', 'ignore', 'inherit'],
 });
 

@@ -63,7 +63,7 @@ Operator — require an **operator** token, scoped to the operator's school:
 | GET  | `/api/admin/children` | The school's kids, in pickup order |
 | POST | `/api/admin/children` | Add a child (home pin + parent phone); `routeId` optional — picks the bus, else the first/auto one |
 | PATCH | `/api/admin/children/:id` | Edit a child, move the pin, or move to another bus (`routeId`) |
-| POST | `/api/admin/arrange` | Set one bus's pickup order (`routeId` + `childIds`) + `schoolArrival`; computes each child's time |
+| POST | `/api/admin/arrange` | Set one bus's pickup order (`routeId` + `childIds`) + `schoolArrival`; computes each child's time from road data (OSRM), estimate fallback |
 | POST | `/api/admin/routes` | Create a bus/list (name only → school as destination); starts tracking |
 | POST | `/api/admin/buses` | Create a bus on a route (one per route) |
 | PATCH | `/api/admin/buses/:id` | Edit a bus / reassign its driver |
@@ -73,6 +73,27 @@ Writes are validated against the operator's school (cross-school → 403). The
 operator OTP login, a live monitor polling `/admin/positions`, add a child with a
 home pin, **arrange the pickup order** (times auto-computed), and add buses / edit
 drivers.
+
+## Pickup times & road data
+
+`POST /admin/arrange` computes each child's pickup time by working **backward
+from the school-arrival time** along the ordered home pins. Travel between homes
+comes from **real road driving times** via **OSRM** (`src/domain/routing.ts`) —
+keyless, like the Nominatim geocoder. If OSRM is unreachable (offline, blocked,
+rate-limited) it **transparently falls back** to a straight-line distance
+estimate, and the response's `mode` field reports which was used
+(`"road"` | `"estimate"`).
+
+Config (env):
+
+| Var | Default | Purpose |
+| --- | --- | --- |
+| `OSRM_URL` | `https://router.project-osrm.org` | OSRM base URL. Set to your own OSRM instance for production; set empty to disable routing (always estimate). |
+| `OSRM_TIMEOUT_MS` | `4000` | Per-request timeout before falling back. |
+
+> The public OSRM demo server is rate-limited and not meant for production
+> traffic — self-host OSRM (or point `OSRM_URL` at a routing provider you control)
+> before real volume. The server host must also be allowed to reach it (egress).
 
 ## Auth
 

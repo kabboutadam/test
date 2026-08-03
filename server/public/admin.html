@@ -471,11 +471,16 @@
             body: JSON.stringify({ routeId, childIds: list.map((c) => c.id), schoolArrival: arrive }),
           });
           if (r.ok) {
-            const schedule = await r.json();
+            const { mode, schedule } = await r.json();
             const timeById = {};
             schedule.forEach((s) => { timeById[s.childId] = s.scheduledTime; });
             kids = kids.map((c) => (timeById[c.id] ? { ...c, scheduledTime: timeById[c.id] } : c));
             renderChildren();
+            const g2 = document.querySelector('.bus-group[data-route="' + routeId + '"] .arrange-msg');
+            if (g2) {
+              g2.textContent = mode === 'road' ? 'Times from live road data.' : 'Times estimated from distance.';
+              g2.className = 'msg arrange-msg ok';
+            }
           } else {
             msg.textContent = (await r.json()).message || 'Failed'; msg.className = 'msg arrange-msg err';
           }

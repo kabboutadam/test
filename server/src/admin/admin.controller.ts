@@ -17,6 +17,7 @@ import { CurrentOperator, OperatorContext } from '../auth/current-user.decorator
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { distanceKm } from '../domain/geo';
 import { normalizePhone } from '../domain/phone';
+import { roadLegMinutes } from '../domain/routing';
 import { Bus, Child, Route, Stop } from '../domain/types';
 import { FleetService } from '../fleet/fleet.service';
 import { PositionsService } from '../positions/positions.service';
@@ -481,14 +482,18 @@ export class AdminController {
     const ordered = [...pickups, ...destination];
     if (ordered.length < 2) throw new BadRequestException('need at least one child');
 
-    // Distance-based travel between consecutive stops.
+    // Real road driving times (OSRM) between consecutive stops, falling back to
+    // a straight-line distance estimate per leg if routing is unavailable.
+    const legs = await roadLegMinutes(ordered.map((s) => s.location));
     const withTravel = ordered.map((s, i) => ({
       ...s,
       order: i,
       travelMinutesFromPrev:
         i === 0
           ? 0
-          : Math.max(1, Math.round((distanceKm(ordered[i - 1].location, s.location) / speed) * 60)),
+          : legs
+            ? legs[i - 1]
+            : Math.max(1, Math.round((distanceKm(ordered[i - 1].location, s.location) / speed) * 60)),
     }));
 
     // Total trip time (travel + a dwell at each stop we depart), then back-fill
@@ -506,13 +511,15 @@ export class AdminController {
 
     await this.fleet.updateRoute({ ...route, stops: timed });
 
-    // Report each child's computed pickup time in order.
-    return kids
+    // Report each child's computed pickup time in order, plus whether the
+    // travel came from real road data or the distance estimate fallback.
+    const schedule = kids
       .map((c) => {
         const s = timed.find((t) => t.id === c.stopId);
         return { childId: c.id, name: c.name, order: s?.order ?? 0, scheduledTime: s?.scheduledTime ?? '' };
       })
       .sort((a, b) => a.order - b.order);
+    return { mode: legs ? 'road' : 'estimate', schedule };
   }
 }
 

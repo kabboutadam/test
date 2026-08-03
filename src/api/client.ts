@@ -105,6 +105,12 @@ export interface ArrangedChild {
   scheduledTime: string;
 }
 
+export interface ArrangeResult {
+  /** 'road' = real driving times (OSRM); 'estimate' = distance-based fallback. */
+  mode: 'road' | 'estimate';
+  schedule: ArrangedChild[];
+}
+
 export interface AdminChildPatch {
   name?: string;
   grade?: string;
@@ -149,7 +155,7 @@ export function adminRemoveChild(token: string, id: string): Promise<{ ok: boole
 }
 
 /** Set the pickup order and compute each child's time (back from arrival). */
-export function adminArrange(token: string, body: ArrangeInput): Promise<ArrangedChild[]> {
+export function adminArrange(token: string, body: ArrangeInput): Promise<ArrangeResult> {
   return request('/admin/arrange', { method: 'POST', body, token });
 }
 

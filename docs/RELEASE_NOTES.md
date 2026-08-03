@@ -6,8 +6,9 @@
   their **home address/pin** and the **parent's phone** — no route to pick.
 - **Arrange by order, times are automatic.** The school orders the kids (▲▼) and
   sets a **"be at school by"** time; the app computes **each child's pickup time**
-  by estimating travel between homes and working backward from arrival. Parents
-  see the pickup time on their child's card.
+  from **real road driving times** between homes (OSRM), working backward from
+  arrival — with a distance-estimate fallback if routing is unavailable, and it
+  tells you which was used. Parents see the pickup time on their child's card.
 - **Multiple buses.** A school can run several buses — each its own pickup list
   with its own order, arrival time, and computed times. Add a bus, choose which
   bus a child rides, and move kids between buses.
