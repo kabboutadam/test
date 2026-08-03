@@ -206,3 +206,15 @@ eas submit -p android --latest
 ```
 Android maps need a Google Maps API key in `app.json`
 (`android.config.googleMaps.apiKey`).
+
+### Dedicated bus device — sideloadable APK (no Play Store)
+
+For a cheap phone kept in the bus, skip the store and install an APK directly:
+```bash
+eas build -p android --profile driver-device
+```
+The `driver-device` profile (in `eas.json`) extends `production` — same server
+and `production` OTA channel — but outputs a **`.apk`** with `internal`
+distribution. EAS gives a download link; open it on the phone (allow "install
+from unknown sources"). Log in with that bus's registered driver number →
+Driver mode → **Start route**. See "Onboarding a driver" in `docs/MULTI_TENANT.md`.

@@ -23,6 +23,11 @@
         "resourceClass": "m-medium",
         "image": "latest"
       }
+    },
+    "driver-device": {
+      "extends": "production",
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
     }
   },
   "submit": {

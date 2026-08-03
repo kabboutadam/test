@@ -121,19 +121,55 @@ The web dashboard (`/admin.html`) mirrors this exact flow for staff who prefer a
 big screen, and stays the place for **bus/driver assignment**. Both hit the same
 guarded, school-scoped API.
 
-## Going live (this is backend work — the app is still in demo mode)
+## Onboarding a driver
 
-The TestFlight app currently runs in **demo mode** (`app.json →
-expo.extra.useBackend: false`) and does not talk to this backend. To make the
-multi-tenant system real:
+A driver's **phone number is their login and their identity** — there's no
+separate driver app and no account to create. The same BusMapp app detects the
+number and opens **Driver mode**, scoped to that one bus's route.
+
+1. **Register the driver on their bus** (dashboard → the bus's *Assign vehicle &
+   driver* card, or the app): enter plate, driver name, and the driver's **mobile
+   number in full international format** (`+961 …`). Save. That number now owns
+   that bus's route. One bus = one driver phone; swap drivers by editing the
+   number (the old one instantly loses access).
+2. **Put the app on a device** — the driver's own phone, or a cheap phone kept in
+   the bus. It's the same app everyone uses:
+   - **iOS:** the TestFlight build.
+   - **Android (cheapest for a dedicated bus phone):** a sideloadable APK —
+     `eas build -p android --profile driver-device` produces an `.apk` on the
+     `production` channel (same server + OTA updates). Copy it to the phone and
+     install (allow "install from unknown sources").
+3. **Log in once** with that registered number → SMS code → verify. The app opens
+   straight into **Driver mode** (their route only). A login lasts ~30 days, so a
+   dedicated device re-authenticates roughly monthly.
+4. **Each shift:** Driver mode → **Device GPS → Start route** → allow location
+   (**Always Allow** so it keeps streaming with the phone locked/mounted) →
+   **Stop** when the run ends.
+
+Two things that must be right:
+
+- **Phone format must match** what's registered. Spaces/dashes are ignored, but
+  the **country code and leading `+` are not** — always use `+961…` everywhere.
+- **Real SMS must be enabled** or the driver can't receive a code: set
+  `SMS_PROVIDER=twilio` (+ `TWILIO_*`) on the server. In the default `console`
+  mode the code is only logged, not texted. See `server/README.md`.
+
+## Going live (backend notes)
+
+The app is already in **backend mode** (`app.json → expo.extra.useBackend: true`,
+`apiBaseUrl` → the deployed server). For a real, multi-tenant deployment make
+sure the server is set up for production:
 
 1. **Deploy `server/`** to a public host with Postgres:
    - set `USE_PRISMA=true` and `DATABASE_URL`, run `npm run prisma:migrate` then
      `npm run prisma:seed`;
    - set a strong `JWT_SECRET`, your `SUPERADMIN_PHONES`, and a real SMS
-     provider (`SMS_PROVIDER=twilio` + creds) so operators/parents get codes.
-2. **Point the app at it**: `expo.extra.useBackend: true` and
-   `expo.extra.apiBaseUrl: "https://your-server"`, then cut a new build.
-3. Onboard your first school as above and hand them the dashboard link.
+     provider (`SMS_PROVIDER=twilio` + creds) so operators/parents/drivers get
+     codes — **without this, no one can log in on their own phone**;
+   - point road-time routing at your own OSRM (`OSRM_URL`) before real volume.
+2. **Keep the app pointed at it**: if you move the server, update
+   `expo.extra.apiBaseUrl` and cut a new build (that value is baked in at build).
+3. Onboard your first school as above, hand them the dashboard link, and register
+   each bus's driver phone.
 
 See `docs/DEPLOY.md` for host-specific steps.
