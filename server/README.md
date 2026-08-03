@@ -94,6 +94,8 @@ Config (env):
 > The public OSRM demo server is rate-limited and not meant for production
 > traffic — self-host OSRM (or point `OSRM_URL` at a routing provider you control)
 > before real volume. The server host must also be allowed to reach it (egress).
+> A copy-paste Docker + Lebanon-extract runbook is in
+> [`docs/DEPLOY.md`](../docs/DEPLOY.md#road-routing--self-host-osrm-recommended-for-real-times).
 
 ## Auth
 

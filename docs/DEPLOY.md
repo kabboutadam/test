@@ -110,6 +110,51 @@ Get the URL with `fly info` (e.g. `https://busmapp-api.fly.dev`).
 **Push delivery:** the host must allow outbound HTTPS to `exp.host` (most do by
 default). Remote push also needs the EAS `projectId` + a physical device.
 
+## Road routing — self-host OSRM (recommended for real times)
+
+Pickup times use **OSRM** for real road driving times. The default
+`OSRM_URL=https://router.project-osrm.org` is a **rate-limited demo** — fine to
+try, not for production. Run your own with a Lebanon extract (Docker; ~30 MB
+download, a couple minutes to preprocess, tiny RAM):
+
+```bash
+# 1. Lebanon road network from Geofabrik
+mkdir -p osrm && cd osrm
+curl -L -o lebanon-latest.osm.pbf \
+  https://download.geofabrik.de/asia/lebanon-latest.osm.pbf
+
+# 2. Preprocess with the car profile (MLD pipeline — easy monthly updates)
+docker run --rm -t -v "${PWD}:/data" osrm/osrm-backend \
+  osrm-extract -p /opt/car.lua /data/lebanon-latest.osm.pbf
+docker run --rm -t -v "${PWD}:/data" osrm/osrm-backend \
+  osrm-partition /data/lebanon-latest.osrm
+docker run --rm -t -v "${PWD}:/data" osrm/osrm-backend \
+  osrm-customize /data/lebanon-latest.osrm
+
+# 3. Serve on :5000 (stays up, restarts with the host)
+docker run -d --name osrm --restart unless-stopped \
+  -p 5000:5000 -v "${PWD}:/data" \
+  osrm/osrm-backend osrm-routed --algorithm mld /data/lebanon-latest.osrm
+```
+
+Verify, then point the API at it:
+
+```bash
+# Expect "code":"Ok" and a routes[0].legs[0].duration
+curl "http://localhost:5000/route/v1/driving/35.50,33.89;35.48,33.90?overview=false"
+
+# Then set on the API host (private address if same network) and redeploy:
+#   OSRM_URL=http://<osrm-host>:5000
+```
+
+After redeploy, click **Save order & times** in the dashboard — the confirmation
+should read **"from live road data."** If it says "estimated," the API host
+can't reach `OSRM_URL` (check egress/firewall and that the container is up).
+
+- **docker-compose:** add a service `osrm: { image: osrm/osrm-backend, command: osrm-routed --algorithm mld /data/lebanon-latest.osrm, volumes: ["./osrm:/data"], ports: ["5000:5000"] }` and set the API's `OSRM_URL=http://osrm:5000`.
+- **Keeping it current:** re-run the three preprocess steps on a fresh
+  `lebanon-latest.osm.pbf` monthly (a cron), then restart the `osrm` container.
+
 ## Notes
 
 - **Turn off `SEED_ON_START`** once you have real data, so boots don't re-upsert
