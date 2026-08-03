@@ -214,6 +214,15 @@ async function run() {
   });
   check('parent cannot post driver GPS (403)', gpsParent.status === 403);
 
+  // Lebanon phone normalization: a driver registered with a LOCAL-format number
+  // can log in with any format of the same number (and vice-versa).
+  await api('/admin/buses', {
+    method: 'POST', token: opA,
+    body: { plateNumber: 'B 222', driverName: 'Sami', driverPhone: '03 999 888', routeId: simpleRoute.id },
+  });
+  const localFmtLogin = await login('+9613999888'); // different format, same number
+  check('driver logs in across phone formats (local ⇄ +961)', typeof localFmtLogin === 'string' && localFmtLogin.length > 20);
+
   // Driver's pickup manifest: their own route's kids, in order.
   const manifest = (await api('/driver/manifest', { token: driverA })).data;
   check('driver manifest lists their route kids in order',
