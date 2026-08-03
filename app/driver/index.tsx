@@ -27,6 +27,11 @@ import { DriverClient } from '@/api/driverClient';
 import { LatLng, Route } from '@/models/types';
 import { useAuth } from '@/store/AuthContext';
 import { lerpLatLng } from '@/services/geo';
+import {
+  isDriverTracking,
+  startDriverTracking,
+  stopDriverTracking,
+} from '@/services/driverLocationTask';
 import { colors, radius, spacing } from '@/theme/theme';
 
 type Mode = 'simulate' | 'device';
@@ -62,10 +67,9 @@ function Streamer({
 }) {
   const clientRef = useRef<DriverClient | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const watchRef = useRef<Location.LocationSubscription | null>(null);
   const progressRef = useRef(0);
 
-  const [mode, setMode] = useState<Mode>('simulate');
+  const [mode, setMode] = useState<Mode>('device');
   const [streaming, setStreaming] = useState(false);
   const [pointsSent, setPointsSent] = useState(0);
   const [status, setStatus] = useState('Idle');
@@ -82,19 +86,32 @@ function Streamer({
 
   useEffect(() => {
     clientRef.current = new DriverClient();
-    return () => stop();
+    // If background tracking is already running (app was reopened mid-route),
+    // reflect that so the driver can stop it.
+    isDriverTracking().then((active) => {
+      if (active) {
+        setMode('device');
+        setStreaming(true);
+        setStatus('Sharing live location (background)');
+      }
+    });
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      clientRef.current?.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function start() {
     if (!route) return;
-    const client = clientRef.current!;
-    client.connect(token);
-    progressRef.current = 0;
-    setPointsSent(0);
-    setStreaming(true);
 
+    // Simulated GPS stays a foreground socket stream — it's just for demos.
     if (mode === 'simulate') {
+      const client = clientRef.current!;
+      client.connect(token);
+      progressRef.current = 0;
+      setPointsSent(0);
+      setStreaming(true);
       setStatus('Streaming simulated GPS');
       intervalRef.current = setInterval(() => {
         const { location, done } = walkRoute(route, progressRef);
@@ -105,33 +122,32 @@ function Streamer({
       return;
     }
 
-    const { status: perm } = await Location.requestForegroundPermissionsAsync();
-    if (perm !== 'granted') {
+    // Real GPS uses a background task so it keeps streaming with the phone
+    // locked or the app in the background.
+    const fg = await Location.requestForegroundPermissionsAsync();
+    if (fg.status !== 'granted') {
       setStatus('Location permission denied');
-      setStreaming(false);
       return;
     }
-    setStatus('Streaming device GPS');
-    watchRef.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 5 },
-      (pos) => {
-        const location: LatLng = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        };
-        const speedKmh = pos.coords.speed != null ? Math.max(0, pos.coords.speed * 3.6) : undefined;
-        client.sendGps(routeId, location, speedKmh);
-        setPointsSent((n) => n + 1);
-      },
-    );
+    const bg = await Location.requestBackgroundPermissionsAsync();
+    try {
+      await startDriverTracking({ token, routeId });
+      setStreaming(true);
+      setStatus(
+        bg.status === 'granted'
+          ? 'Sharing live location — you can lock the phone'
+          : 'Sharing live location (foreground only — allow “Always” to keep it running locked)',
+      );
+    } catch {
+      setStatus('Could not start location — check permissions');
+    }
   }
 
-  function stop() {
+  async function stop() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = null;
-    watchRef.current?.remove();
-    watchRef.current = null;
     clientRef.current?.disconnect();
+    await stopDriverTracking().catch(() => {});
     setStreaming(false);
     setStatus('Idle');
   }
@@ -169,9 +185,17 @@ function Streamer({
           <View style={[styles.dot, { backgroundColor: streaming ? colors.success : colors.textMuted }]} />
           <Text style={styles.statusText}>{status}</Text>
         </View>
-        <Text style={styles.statusMeta}>Points sent: {pointsSent}</Text>
+        {mode === 'simulate' && <Text style={styles.statusMeta}>Points sent: {pointsSent}</Text>}
         <Text style={styles.statusMeta}>Server: {config.apiBaseUrl}</Text>
       </View>
+
+      {mode === 'device' && (
+        <Text style={styles.hint}>
+          Keep this app running (locked screen is fine — mount the phone in the
+          bus). Tracking shares the bus location with parents only while your
+          route is active; tap Stop when you're done.
+        </Text>
+      )}
 
       <Pressable style={[styles.cta, streaming && styles.ctaStop]} onPress={streaming ? stop : start}>
         <Ionicons name={streaming ? 'stop-circle' : 'play-circle'} size={20} color={colors.onPrimary} />

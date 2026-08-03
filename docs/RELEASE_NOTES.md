@@ -1,5 +1,19 @@
 # Release notes
 
+## Unreleased — background driver tracking
+
+- **The bus keeps sharing its location with the app in the background.** Driver
+  mode's "Device GPS" now uses an OS background-location task, so tracking
+  continues while the phone is locked or mounted on the dash — the driver taps
+  **Start route** once and can pocket/mount the phone. Tap **Stop** (or sign out)
+  to end it. An Android foreground-service notification shows while it's active.
+- New HTTP ingest endpoint `POST /api/driver/positions` (driver token, route-
+  scoped) that the background task posts to; same authorization and pipeline as
+  the live `driver:gps` socket. 31/31 isolation checks (added driver-ingest
+  auth: own route OK, other route 403, parent 403).
+- **Requires a new native build** (adds background-location permission + iOS
+  `location` background mode) — this one can't ship as an OTA update.
+
 ## Unreleased — simpler school setup
 
 - **No more route-building for schools.** A school now just adds each child with

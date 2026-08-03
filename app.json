@@ -37,7 +37,14 @@
         "googleMaps": {
           "apiKey": "REPLACE_WITH_ANDROID_GOOGLE_MAPS_API_KEY"
         }
-      }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -49,7 +56,12 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "BusMapp uses your location to share the bus position with parents while you drive the route."
+          "locationWhenInUsePermission": "BusMapp shares the bus's live location with parents while you drive the route \u2014 including with the app in the background.",
+          "locationAlwaysAndWhenInUsePermission": "BusMapp shares the bus's live location with parents while you drive the route \u2014 including with the app in the background.",
+          "locationAlwaysPermission": "BusMapp shares the bus's live location with parents while you drive the route \u2014 including with the app in the background.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ]
     ],

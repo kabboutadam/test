@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { config } from '@/api/config';
+import '@/services/driverLocationTask'; // registers the background-location task
 import { I18nProvider, useI18n } from '@/i18n/I18nContext';
 import { AppProvider } from '@/store/AppContext';
 import { AuthProvider, useAuth } from '@/store/AuthContext';

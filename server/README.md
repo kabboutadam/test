@@ -31,7 +31,7 @@ Public:
 | GET  | `/api/buses` | All buses |
 | GET  | `/api/positions` | Snapshot of every bus position |
 | GET  | `/api/positions/:routeId` | One bus's position |
-| POST | `/api/positions/:routeId/gps` | Driver GPS ingest (REST fallback) |
+| POST | `/api/driver/positions` | Driver GPS ingest (HTTP) — driver token + `{ routeId, points[] }`; used by the app's **background-location** task so tracking continues with the phone locked. Same auth + pipeline as the `driver:gps` socket. |
 | GET  | `/api/plans` | Subscription plans |
 
 Auth:

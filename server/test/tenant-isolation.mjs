@@ -192,6 +192,28 @@ async function run() {
   const pBDeletesA = await api(`/me/children/${childA.id}`, { method: 'DELETE', token: parentB });
   check('parent B cannot delete parent A child (403)', pBDeletesA.status === 403);
 
+  // --- Driver GPS ingestion over HTTP (the background-location path) ---
+  await api('/admin/buses', {
+    method: 'POST', token: opA,
+    body: { plateNumber: 'B 111', driverName: 'Nabil', driverPhone: '+961 3 111 222', routeId: routeA.id },
+  });
+  const driverA = await login('+961 3 111 222');
+  const gpsOk = await api('/driver/positions', {
+    method: 'POST', token: driverA,
+    body: { routeId: routeA.id, points: [{ latitude: 34.44, longitude: 35.83, speedKmh: 30 }] },
+  });
+  check('driver can post GPS for their own route', gpsOk.data?.ok === true);
+  const gpsWrong = await api('/driver/positions', {
+    method: 'POST', token: driverA,
+    body: { routeId: routeB.id, points: [{ latitude: 34.44, longitude: 35.83 }] },
+  });
+  check('driver cannot post GPS for another route (403)', gpsWrong.status === 403);
+  const gpsParent = await api('/driver/positions', {
+    method: 'POST', token: parentA,
+    body: { routeId: routeA.id, points: [{ latitude: 34.44, longitude: 35.83 }] },
+  });
+  check('parent cannot post driver GPS (403)', gpsParent.status === 403);
+
   // --- Privilege boundaries ---
   const opTriesPlatform = await api('/platform/schools', { method: 'POST', token: opA, body: { name: 'x', latitude: 1, longitude: 1 } });
   check('operator cannot create a school (403)', opTriesPlatform.status === 403);

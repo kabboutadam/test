@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
 import { FleetModule } from '../fleet/fleet.module';
+import { DriverController } from './driver.controller';
 import { PositionsGateway } from './positions.gateway';
 import { PositionsService } from './positions.service';
 
 @Module({
   imports: [AuthModule, FleetModule],
+  controllers: [DriverController],
   providers: [PositionsService, PositionsGateway],
   exports: [PositionsService],
 })
