@@ -214,6 +214,16 @@ async function run() {
   });
   check('parent cannot post driver GPS (403)', gpsParent.status === 403);
 
+  // Driver's pickup manifest: their own route's kids, in order.
+  const manifest = (await api('/driver/manifest', { token: driverA })).data;
+  check('driver manifest lists their route kids in order',
+    manifest?.routeName === routeA.name &&
+    Array.isArray(manifest.pickups) &&
+    manifest.pickups.some((p) => p.name === 'Aya') &&
+    manifest.pickups.every((p, i, a) => i === 0 || a[i - 1].order <= p.order));
+  const manifestParent = await api('/driver/manifest', { token: parentA });
+  check('parent cannot read driver manifest (403)', manifestParent.status === 403);
+
   // --- Privilege boundaries ---
   const opTriesPlatform = await api('/platform/schools', { method: 'POST', token: opA, body: { name: 'x', latitude: 1, longitude: 1 } });
   check('operator cannot create a school (403)', opTriesPlatform.status === 403);

@@ -17,6 +17,8 @@
   **locked or backgrounded** — the driver taps **Start route** once and mounts
   the phone; **Stop** (or sign out) ends it. Android shows a "sharing location"
   notification while active; iOS asks for **Always Allow** to keep running locked.
+- Driver mode shows the **pickup list in order** — each kid's name, home address,
+  and time, with a one-tap **call parent** button if a child isn't at the stop.
 
 **Under the hood.** New endpoints — `POST /admin/arrange`, optional `routeId` on
 add/move-child, and `POST /api/driver/positions` (the background task's ingest,

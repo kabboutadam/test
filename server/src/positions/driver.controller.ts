@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
+  NotFoundException,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -11,6 +13,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthUser } from '../auth/auth.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LatLng } from '../domain/types';
+import { FleetService } from '../fleet/fleet.service';
 import { PositionsService } from './positions.service';
 
 interface GpsPoint {
@@ -36,7 +39,54 @@ interface DriverPositionsBody {
 @Controller('driver')
 @UseGuards(JwtAuthGuard)
 export class DriverController {
-  constructor(private readonly positions: PositionsService) {}
+  constructor(
+    private readonly positions: PositionsService,
+    private readonly fleet: FleetService,
+  ) {}
+
+  /**
+   * The driver's pickup manifest: the kids on their own route, in pickup order,
+   * with each home address, scheduled time, and a parent phone to call if a
+   * child isn't at the stop. Scoped to the driver's assigned route only.
+   */
+  @Get('manifest')
+  manifest(@CurrentUser() user: AuthUser) {
+    if (user.role !== 'driver') {
+      throw new ForbiddenException('Driver account required');
+    }
+    const route = this.fleet.getRoute(user.routeId);
+    if (!route) throw new NotFoundException('route not found');
+
+    const kids = this.fleet.getChildrenForRoute(user.routeId);
+    const stopById = new Map(route.stops.map((s) => [s.id, s]));
+    const childStopIds = new Set(kids.map((c) => c.stopId));
+
+    const pickups = kids
+      .map((c) => {
+        const stop = stopById.get(c.stopId);
+        const parent = this.fleet.getParent(c.parentId);
+        return {
+          order: stop?.order ?? 0,
+          name: c.name,
+          grade: c.grade,
+          address: c.address ?? stop?.name ?? null,
+          scheduledTime: stop?.scheduledTime || null,
+          parentPhone: parent?.phone ?? null,
+          location: stop?.location ?? null,
+        };
+      })
+      .sort((a, b) => a.order - b.order);
+
+    // The destination (school) is the stop no child owns.
+    const dest = route.stops.filter((s) => !childStopIds.has(s.id)).slice(-1)[0];
+    return {
+      routeName: route.name,
+      pickups,
+      destination: dest
+        ? { name: dest.name, scheduledTime: dest.scheduledTime || null, location: dest.location }
+        : null,
+    };
+  }
 
   @Post('positions')
   ingest(

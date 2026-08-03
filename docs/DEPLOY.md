@@ -110,6 +110,40 @@ Get the URL with `fly info` (e.g. `https://busmapp-api.fly.dev`).
 **Push delivery:** the host must allow outbound HTTPS to `exp.host` (most do by
 default). Remote push also needs the EAS `projectId` + a physical device.
 
+## SMS delivery — turn on real login codes (Twilio)
+
+Login is phone + SMS code. In the **default `console` mode no text is sent** (the
+code is only logged), so **drivers and parents on their own phones can't log in.**
+Enable Twilio for any real deployment:
+
+1. **Create a Twilio account** — https://www.twilio.com/try-twilio (pay-as-you-go;
+   roughly ~$1/mo per number + a few cents per message).
+2. **Set up a sender that can text Lebanon (+961):**
+   - Turn on Lebanon under **Messaging → Settings → Geo permissions**.
+   - Use a Twilio **phone number** with SMS enabled, **or** an **Alphanumeric
+     Sender ID** (e.g. `BusMapp`) — alphanumeric often works best for +961 and
+     needs no number (recipients just can't reply, which is fine for codes).
+3. **Copy credentials** from the Twilio Console: `ACCOUNT SID` + `AUTH TOKEN`.
+4. **Set env vars on your host** (Render → service → **Environment**), then save
+   (the host redeploys):
+   ```
+   SMS_PROVIDER=twilio
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   TWILIO_FROM=+1XXXXXXXXXX      # your Twilio number, OR an alphanumeric ID like BusMapp
+   ```
+5. **Test:** on the app's login screen, request a code for a real +961 number — a
+   text should arrive in seconds. If it doesn't, open Twilio Console → **Monitor →
+   Logs → Messaging** for the reason.
+
+Gotchas:
+- **Trial accounts** can only text numbers you've *verified* in Twilio and add a
+  "trial account" prefix. Add funds to send to anyone.
+- Keep `TWILIO_AUTH_TOKEN` in the host's secret store — never in git.
+- How to confirm which mode is live: if a requested code arrives by SMS, you're on
+  Twilio; if nothing arrives, you're still on `console`. (Implementation:
+  `TwilioSmsProvider` in `server/src/auth/sms/sms-provider.ts`.)
+
 ## Road routing — self-host OSRM (recommended for real times)
 
 Pickup times use **OSRM** for real road driving times. The default

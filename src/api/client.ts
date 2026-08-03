@@ -159,6 +159,32 @@ export function adminArrange(token: string, body: ArrangeInput): Promise<Arrange
   return request('/admin/arrange', { method: 'POST', body, token });
 }
 
+// --- Driver ---
+
+export interface DriverPickup {
+  order: number;
+  name: string;
+  grade: string;
+  address: string | null;
+  scheduledTime: string | null;
+  parentPhone: string | null;
+  location: { latitude: number; longitude: number } | null;
+}
+export interface DriverManifest {
+  routeName: string;
+  pickups: DriverPickup[];
+  destination: {
+    name: string;
+    scheduledTime: string | null;
+    location: { latitude: number; longitude: number };
+  } | null;
+}
+
+/** The driver's ordered pickup list for their own route. */
+export function fetchDriverManifest(token: string): Promise<DriverManifest> {
+  return request('/driver/manifest', { token });
+}
+
 // --- Parent data (guarded) ---
 
 export function fetchChildren(token: string): Promise<Child[]> {

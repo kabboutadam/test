@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -74,15 +75,17 @@ function Streamer({
   const [pointsSent, setPointsSent] = useState(0);
   const [status, setStatus] = useState('Idle');
   const [route, setRoute] = useState<Route | null>(null);
+  const [manifest, setManifest] = useState<api.DriverManifest | null>(null);
 
-  // Load the driver's assigned route from the server (works for real routes).
+  // Load the driver's assigned route + pickup manifest from the server.
   useEffect(() => {
     let active = true;
     api.fetchRoute(routeId).then((r) => active && setRoute(r)).catch(() => {});
+    api.fetchDriverManifest(token).then((m) => active && setManifest(m)).catch(() => {});
     return () => {
       active = false;
     };
-  }, [routeId]);
+  }, [routeId, token]);
 
   useEffect(() => {
     clientRef.current = new DriverClient();
@@ -202,6 +205,57 @@ function Streamer({
         <Text style={styles.ctaText}>{streaming ? 'Stop route' : 'Start route'}</Text>
       </Pressable>
 
+      {manifest && (
+        <>
+          <Text style={styles.sectionTitle}>
+            Pickup order {manifest.pickups.length ? `(${manifest.pickups.length})` : ''}
+          </Text>
+          {manifest.pickups.length === 0 ? (
+            <Text style={styles.hint}>No kids assigned to this bus yet.</Text>
+          ) : (
+            manifest.pickups.map((p, i) => (
+              <View key={`${p.name}-${i}`} style={styles.pickupRow}>
+                <View style={styles.pickupBadge}>
+                  <Text style={styles.pickupBadgeText}>{i + 1}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pickupName}>
+                    {p.name}
+                    {p.scheduledTime ? `  ·  ${p.scheduledTime}` : ''}
+                  </Text>
+                  {!!p.address && (
+                    <Text style={styles.pickupAddr} numberOfLines={2}>{p.address}</Text>
+                  )}
+                </View>
+                {!!p.parentPhone && (
+                  <Pressable
+                    hitSlop={8}
+                    style={styles.callBtn}
+                    onPress={() => Linking.openURL(`tel:${p.parentPhone}`)}
+                  >
+                    <Ionicons name="call" size={18} color={colors.primary} />
+                  </Pressable>
+                )}
+              </View>
+            ))
+          )}
+          {manifest.destination && (
+            <View style={[styles.pickupRow, styles.destRow]}>
+              <View style={[styles.pickupBadge, styles.destBadge]}>
+                <Ionicons name="school" size={15} color={colors.onPrimary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickupName}>
+                  {manifest.destination.name}
+                  {manifest.destination.scheduledTime ? `  ·  ${manifest.destination.scheduledTime}` : ''}
+                </Text>
+                <Text style={styles.pickupAddr}>Drop-off · school</Text>
+              </View>
+            </View>
+          )}
+        </>
+      )}
+
       {!streaming && (
         <Pressable onPress={onSignOut}>
           <Text style={styles.link}>Sign out of driver mode</Text>
@@ -295,6 +349,42 @@ const styles = StyleSheet.create({
   ctaDisabled: { opacity: 0.6 },
   ctaText: { color: colors.onPrimary, fontSize: 17, fontWeight: '700' },
   hint: { fontSize: 13, color: colors.textMuted },
+  pickupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  destRow: { borderStyle: 'dashed' },
+  pickupBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  destBadge: { backgroundColor: colors.primary, borderColor: colors.primary },
+  pickupBadgeText: { fontSize: 13, fontWeight: '800', color: colors.text },
+  pickupName: { fontSize: 15, fontWeight: '700', color: colors.text },
+  pickupAddr: { fontSize: 13, color: colors.textMuted, marginTop: 1 },
+  callBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   link: {
     color: colors.primary,
     fontSize: 14,
