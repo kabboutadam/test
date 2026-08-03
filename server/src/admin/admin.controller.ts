@@ -133,6 +133,18 @@ export class AdminController {
       };
     });
 
+    // Server-wide SMS status so the dashboard can warn when login codes aren't
+    // actually being texted (default console mode).
+    const twilio = process.env.SMS_PROVIDER === 'twilio';
+    const sms = {
+      mode: twilio ? 'twilio' : 'console',
+      ready:
+        twilio &&
+        !!process.env.TWILIO_ACCOUNT_SID &&
+        !!process.env.TWILIO_AUTH_TOKEN &&
+        !!process.env.TWILIO_FROM,
+    };
+
     return {
       school: school ?? null,
       routes: routeSummaries,
@@ -141,6 +153,7 @@ export class AdminController {
         buses: routeSummaries.filter((r) => r.plateNumber).length,
         children: routeSummaries.reduce((n, r) => n + r.childCount, 0),
       },
+      sms,
     };
   }
 

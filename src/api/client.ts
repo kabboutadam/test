@@ -61,6 +61,7 @@ export interface AdminOverview {
   school: { id: string; name: string; location: { latitude: number; longitude: number } } | null;
   routes: { id: string; name: string; stopCount: number; childCount: number; plateNumber: string | null }[];
   totals: { routes: number; buses: number; children: number };
+  sms?: { mode: 'twilio' | 'console'; ready: boolean };
 }
 
 export interface AdminChild {

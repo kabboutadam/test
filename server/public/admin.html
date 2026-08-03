@@ -95,6 +95,9 @@
       .link-btn { background: none; padding: 0; color: var(--primary); font-size: 12px; font-weight: 700; }
       .children-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       @media (max-width: 760px) { .children-grid { grid-template-columns: 1fr; } }
+      .banner { padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+      .banner.warn { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+      .banner.ok { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
       .ord-btn { border: 0; background: none; cursor: pointer; font-size: 14px; color: #2563eb; padding: 0 3px; }
       .ord-btn:disabled { color: #cbd5e1; cursor: default; }
       .bus-group { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 14px; }
@@ -127,6 +130,7 @@
         <button id="signOut" class="btn-ghost">Sign out</button>
       </header>
       <main>
+        <div id="smsBanner" class="banner hidden"></div>
         <div class="stats">
           <div class="stat"><div class="n" id="tRoutes">0</div><div class="l">Routes</div></div>
           <div class="stat"><div class="n" id="tBuses">0</div><div class="l">Buses</div></div>
@@ -309,6 +313,20 @@
         $('tRoutes').textContent = overview.totals.routes;
         $('tBuses').textContent = overview.totals.buses;
         $('tChildren').textContent = overview.totals.children;
+
+        // SMS health: warn loudly when login codes aren't actually being texted.
+        const banner = $('smsBanner');
+        const sms = overview.sms || { mode: 'console', ready: false };
+        if (sms.mode === 'twilio' && sms.ready) {
+          banner.className = 'banner ok';
+          banner.textContent = '✅ SMS: live (Twilio) — drivers and parents receive login codes by text.';
+        } else if (sms.mode === 'twilio') {
+          banner.className = 'banner warn';
+          banner.textContent = '⚠️ SMS: Twilio selected but credentials are missing (TWILIO_ACCOUNT_SID / AUTH_TOKEN / FROM). Codes will fail to send.';
+        } else {
+          banner.className = 'banner warn';
+          banner.textContent = '⚠️ SMS: console mode — login codes are NOT texted to phones. Set SMS_PROVIDER=twilio + TWILIO_* on the server so drivers and parents can log in.';
+        }
         // Routes without a bus are eligible for "Add bus".
         $('busRoute').innerHTML = overview.routes
           .filter((x) => !x.busId)
