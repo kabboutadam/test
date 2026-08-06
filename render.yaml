@@ -7,7 +7,11 @@ services:
     dockerfilePath: ./server/Dockerfile
     dockerContext: ./server
     healthCheckPath: /api/health
-    plan: free
+    # 'starter' keeps the instance always-on (no free-tier spin-down / ~50s cold
+    # start). Required before real families rely on it. Changing this line only
+    # affects fresh Blueprint deploys — upgrade the already-running service in the
+    # Render dashboard (Settings → Instance Type → Starter).
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
@@ -39,4 +43,7 @@ services:
 
 databases:
   - name: busmapp-db
+    # NOTE: Render DELETES free databases after 90 days — upgrade to a paid tier
+    # in the Render dashboard (busmapp-db → your plan) before storing real data,
+    # or you'll lose all schools/kids/parents at the 90-day mark.
     plan: free
