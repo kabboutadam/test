@@ -21,8 +21,10 @@ export interface FleetRepository {
   addRoute(route: Route): Promise<void>;
   /** Persist a route's stop list (used when a child's pin adds/removes a stop). */
   updateRoute(route: Route): Promise<void>;
+  removeRoute(id: string): Promise<void>;
   addBus(bus: Bus): Promise<void>;
   updateBus(bus: Bus): Promise<void>;
+  removeBus(id: string): Promise<void>;
   // Platform / tenant management.
   addSchool(school: School): Promise<void>;
   updateSchool(school: School): Promise<void>;

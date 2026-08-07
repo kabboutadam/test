@@ -52,12 +52,20 @@ export class MemoryFleetRepository implements FleetRepository {
     const i = this.routeRows.findIndex((r) => r.id === route.id);
     if (i >= 0) this.routeRows[i] = route;
   }
+  async removeRoute(id: string): Promise<void> {
+    const i = this.routeRows.findIndex((r) => r.id === id);
+    if (i >= 0) this.routeRows.splice(i, 1);
+  }
   async addBus(bus: Bus): Promise<void> {
     this.busRows.push(bus);
   }
   async updateBus(bus: Bus): Promise<void> {
     const i = this.busRows.findIndex((b) => b.id === bus.id);
     if (i >= 0) this.busRows[i] = bus;
+  }
+  async removeBus(id: string): Promise<void> {
+    const i = this.busRows.findIndex((b) => b.id === id);
+    if (i >= 0) this.busRows.splice(i, 1);
   }
   async addSchool(school: School): Promise<void> {
     this.schoolRows.push(school);

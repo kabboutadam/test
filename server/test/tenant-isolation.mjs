@@ -233,6 +233,15 @@ async function run() {
   const manifestParent = await api('/driver/manifest', { token: parentA });
   check('parent cannot read driver manifest (403)', manifestParent.status === 403);
 
+  // Delete a bus (route): empty deletes; with kids is blocked; cross-school denied.
+  const tempBus = (await api('/admin/routes', { method: 'POST', token: opA, body: { name: 'Temp bus' } })).data;
+  const delEmpty = await api('/admin/routes/' + tempBus.id, { method: 'DELETE', token: opA });
+  check('operator deletes an empty bus', delEmpty.data?.ok === true);
+  const delWithKids = await api('/admin/routes/' + routeA.id, { method: 'DELETE', token: opA });
+  check('deleting a bus with kids is blocked (400)', delWithKids.status === 400);
+  const delCross = await api('/admin/routes/' + routeB.id, { method: 'DELETE', token: opA });
+  check('operator cannot delete another school bus (403/404)', delCross.status === 403 || delCross.status === 404);
+
   // --- Privilege boundaries ---
   const opTriesPlatform = await api('/platform/schools', { method: 'POST', token: opA, body: { name: 'x', latitude: 1, longitude: 1 } });
   check('operator cannot create a school (403)', opTriesPlatform.status === 403);

@@ -168,6 +168,20 @@ export class PrismaFleetRepository implements FleetRepository {
     });
   }
 
+  async removeBus(id: string): Promise<void> {
+    await this.prisma.bus.delete({ where: { id } });
+  }
+
+  /** Delete a route with its stops and any bus. Callers must ensure it has no
+   * children first (children FK-reference the route). */
+  async removeRoute(id: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.stop.deleteMany({ where: { routeId: id } }),
+      this.prisma.bus.deleteMany({ where: { routeId: id } }),
+      this.prisma.route.delete({ where: { id } }),
+    ]);
+  }
+
   /**
    * Persist a route's stops. Upserts each stop (a child's pin adds/moves one);
    * stops are never deleted here, so a removed child's FK stays valid.

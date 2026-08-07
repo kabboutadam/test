@@ -70,6 +70,25 @@ export default function SchoolHome() {
     ]);
   }
 
+  function confirmRemoveBus(route: api.AdminOverview['routes'][number]) {
+    Alert.alert('Delete bus', `Delete “${route.name}”? This also removes its assigned vehicle/driver.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (!token) return;
+          try {
+            await api.adminDeleteRoute(token, route.id);
+            setRoutes((prev) => prev.filter((r) => r.id !== route.id));
+          } catch {
+            Alert.alert('Could not delete', 'Move or remove this bus’s kids first.');
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -136,7 +155,12 @@ export default function SchoolHome() {
                     </View>
 
                     {kids.length === 0 ? (
-                      <Text style={styles.groupEmpty}>No kids on this bus yet.</Text>
+                      <View style={styles.emptyRow}>
+                        <Text style={styles.groupEmpty}>No kids on this bus yet.</Text>
+                        <Pressable onPress={() => confirmRemoveBus(route)} hitSlop={8}>
+                          <Text style={styles.deleteBus}>Delete bus</Text>
+                        </Pressable>
+                      </View>
                     ) : (
                       kids.map((item) => (
                         <Pressable
@@ -288,7 +312,9 @@ const styles = StyleSheet.create({
   groupHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm },
   groupTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
   groupMeta: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-  groupEmpty: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic', marginBottom: spacing.xs },
+  groupEmpty: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
+  emptyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
+  deleteBus: { fontSize: 13, fontWeight: '700', color: colors.danger },
   arrangeSm: {
     flexDirection: 'row',
     alignItems: 'center',

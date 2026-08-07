@@ -163,6 +163,19 @@ export class FleetService implements OnModuleInit {
     return route;
   }
 
+  /** Delete a route (and any bus on it). Caller must ensure it has no children. */
+  async removeRoute(id: string): Promise<void> {
+    const bus = this.busesCache.find((b) => b.routeId === id);
+    if (bus) await this.removeBus(bus.id);
+    await this.repo.removeRoute(id);
+    this.routesCache = this.routesCache.filter((r) => r.id !== id);
+  }
+
+  async removeBus(id: string): Promise<void> {
+    await this.repo.removeBus(id);
+    this.busesCache = this.busesCache.filter((b) => b.id !== id);
+  }
+
   async addSchool(school: School): Promise<School> {
     await this.repo.addSchool(school);
     this.schoolsCache.push(school);

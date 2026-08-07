@@ -105,6 +105,8 @@
       .bus-head strong { font-size: 15px; }
       .bus-head .grow { flex: 1; }
       .bus-group select.move { margin: 0; padding: 4px 6px; font-size: 12px; }
+      .del-bus { padding: 7px 12px; margin: 0; border: 1px solid #fecaca; background: #fff; color: #b91c1c; border-radius: 8px; font-weight: 600; cursor: pointer; }
+      .del-bus:hover { background: #fef2f2; }
       .arrange-msg:empty { display: none; }
       #childMap, #schoolMap { height: 240px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 10px; }
       .pin-hint { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
@@ -383,6 +385,7 @@
                   '<span class="grow"></span>' +
                   '<label class="src">by <input class="arrive" value="' + esc(arriveByRoute[g.route.id] || '07:30') + '" style="width:64px;text-align:center;margin:0 0 0 4px" /></label>' +
                   '<button class="btn-primary arrange-one" style="padding:7px 12px;margin:0">Save order &amp; times</button>' +
+                  '<button class="del-bus" data-route="' + g.route.id + '" title="Delete this bus">Delete</button>' +
                 '</div>' +
                 (g.list.length
                   ? '<table><tbody>' + g.list.map((c, i) =>
@@ -474,6 +477,27 @@
           if (!nb) return;
           const t = c.order; c.order = nb.order; nb.order = t;
           renderChildren();
+          return;
+        }
+        const delBus = e.target.closest('.del-bus');
+        if (delBus) {
+          const routeId = delBus.dataset.route;
+          const group = delBus.closest('.bus-group');
+          const kidCount = kids.filter((k) => k.routeId === routeId).length;
+          if (kidCount > 0) {
+            const msg = group.querySelector('.arrange-msg');
+            msg.textContent = 'Move or remove this bus’s ' + kidCount + ' kid(s) first.';
+            msg.className = 'msg arrange-msg err';
+            return;
+          }
+          if (!confirm('Delete this bus? This also removes its assigned vehicle/driver.')) return;
+          const r = await api('/admin/routes/' + routeId, { method: 'DELETE' });
+          if (r.ok) { await refreshOverview(); await loadChildren(); await tick(); }
+          else {
+            const msg = group.querySelector('.arrange-msg');
+            msg.textContent = (await r.json()).message || 'Delete failed';
+            msg.className = 'msg arrange-msg err';
+          }
           return;
         }
         const arrange = e.target.closest('.arrange-one');

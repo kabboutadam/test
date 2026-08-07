@@ -139,6 +139,11 @@ export function adminListChildren(token: string): Promise<AdminChild[]> {
   return request('/admin/children', { token });
 }
 
+/** Delete a bus/list. Server rejects (400) if it still has children. */
+export function adminDeleteRoute(token: string, id: string): Promise<{ ok: boolean }> {
+  return request(`/admin/routes/${id}`, { method: 'DELETE', token });
+}
+
 export function adminAddChild(token: string, body: AdminNewChild): Promise<Child> {
   return request('/admin/children', { method: 'POST', body, token });
 }

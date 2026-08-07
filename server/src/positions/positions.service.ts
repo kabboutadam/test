@@ -63,6 +63,12 @@ export class PositionsService implements OnModuleInit, OnModuleDestroy {
     this.positions.set(routeId, this.simPosition(route));
   }
 
+  /** Stop tracking a route (e.g. the operator deleted the bus). */
+  unregisterRoute(routeId: string): void {
+    this.sim.delete(routeId);
+    this.positions.delete(routeId);
+  }
+
   onModuleDestroy(): void {
     if (this.timer) clearInterval(this.timer);
   }

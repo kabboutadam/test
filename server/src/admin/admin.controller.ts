@@ -228,6 +228,20 @@ export class AdminController {
     return route;
   }
 
+  @Delete('routes/:id')
+  async deleteRoute(
+    @CurrentOperator() op: OperatorContext,
+    @Param('id') id: string,
+  ): Promise<{ ok: boolean }> {
+    this.ownedRoute(id, op); // authorize: route belongs to this school
+    if (this.fleet.getChildrenForRoute(id).length > 0) {
+      throw new BadRequestException('move or remove this bus’s children first');
+    }
+    this.positions.unregisterRoute(id); // stop tracking
+    await this.fleet.removeRoute(id); // also deletes any assigned vehicle/driver
+    return { ok: true };
+  }
+
   @Post('buses')
   async createBus(
     @CurrentOperator() op: OperatorContext,
