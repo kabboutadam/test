@@ -1,0 +1,188 @@
+// ChiefStaff data model.
+//
+// The shape follows the product thesis: signals come in from connected
+// sources, get resolved against people, and are turned into exactly two
+// things an executive acts on — Decisions (needs you now) and Loops
+// (you're waiting on someone). Briefs are a rendering of both.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// The executive. One row per person the product serves.
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String?
+  company   String?
+  timezone  String   @default("UTC")
+  briefHour Int      @default(6)
+  createdAt DateTime @default(now())
+
+  connections Connection[]
+  people      Person[]
+  signals     Signal[]
+  decisions   Decision[]
+  loops       Loop[]
+  briefs      Brief[]
+}
+
+/// A connected source account (today: Google Workspace).
+/// Tokens here are the executive's own — everything we read is read as them,
+/// so source-side ACLs are inherited for free. See docs/ARCHITECTURE.md.
+model Connection {
+  id           String    @id @default(cuid())
+  userId       String
+  provider     String
+  accountEmail String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scopes       String
+  /// Gmail historyId for incremental sync; null forces a bounded backfill.
+  cursor       String?
+  lastSyncAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, accountEmail])
+}
+
+/// A human the executive deals with. Built by entity resolution over signals,
+/// so importance is observed rather than declared.
+model Person {
+  id           String    @id @default(cuid())
+  userId       String
+  email        String
+  name         String?
+  org          String?
+  /// report | peer | board | investor | customer | vendor | external | unknown
+  relationship String    @default("unknown")
+  /// 0-100, derived from interaction volume, recency and direction.
+  importance   Int       @default(0)
+  interactions Int       @default(0)
+  lastInbound  DateTime?
+  lastOutbound DateTime?
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signals   Signal[]
+  decisions Decision[]
+  loops     Loop[]
+
+  @@unique([userId, email])
+  @@index([userId, importance])
+}
+
+/// One normalized thing that happened, from any source.
+model Signal {
+  id         String   @id @default(cuid())
+  userId     String
+  /// gmail | gcal
+  source     String
+  /// Stable id in the source system. Makes sync idempotent.
+  externalId String
+  /// email | meeting
+  kind       String
+  /// Groups related signals (Gmail threadId, Calendar recurring event id).
+  threadKey  String?
+  subject    String
+  snippet    String   @db.Text
+  body       String?  @db.Text
+  /// Deep link back into the source. Every generated claim cites one of these.
+  url        String?
+  occurredAt DateTime
+  fromId     String?
+  /// Emails of everyone on the signal, executive included.
+  participants String[]
+  raw        Json?
+  /// Null until the triage pass has looked at it.
+  processedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  from      Person?    @relation(fields: [fromId], references: [id], onDelete: SetNull)
+  decisions Decision[]
+  loops     Loop[]
+
+  @@unique([userId, source, externalId])
+  @@index([userId, processedAt])
+  @@index([userId, occurredAt])
+}
+
+/// Something that needs the executive. The core surface of the product.
+model Decision {
+  id       String @id @default(cuid())
+  userId   String
+  signalId String?
+  personId String?
+
+  title    String
+  /// One sentence on why this reached the executive at all.
+  why      String @db.Text
+  /// approval | reply | escalation | scheduling | review
+  category String
+  /// 0 = whenever, 1 = this week, 2 = today, 3 = now.
+  urgency  Int    @default(1)
+
+  /// Pre-drafted response. Never sent without explicit approval.
+  draft     String? @db.Text
+  draftKind String?
+
+  /// open | approved | dismissed | done
+  status     String    @default("open")
+  dueAt      DateTime?
+  /// [{ label, url }] pointing back at source material.
+  citations  Json      @default("[]")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signal Signal? @relation(fields: [signalId], references: [id], onDelete: SetNull)
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, urgency])
+}
+
+/// An ask the executive made that hasn't come back. The feature nobody ships.
+model Loop {
+  id       String @id @default(cuid())
+  userId   String
+  personId String?
+  signalId String?
+
+  ask       String    @db.Text
+  askedAt   DateTime
+  /// When the executive said they needed it, if they said.
+  dueAt     DateTime?
+  /// waiting | answered | dropped
+  status    String    @default("waiting")
+  lastNudge DateTime?
+  createdAt DateTime  @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  signal Signal? @relation(fields: [signalId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+}
+
+/// A generated daily brief, kept so we can diff "what changed since yesterday".
+model Brief {
+  id        String   @id @default(cuid())
+  userId    String
+  forDate   DateTime @db.Date
+  markdown  String   @db.Text
+  model     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, forDate])
+}

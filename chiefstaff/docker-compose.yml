@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: chief
+      POSTGRES_PASSWORD: chief
+      POSTGRES_DB: chiefstaff
+    ports:
+      - "5432:5432"
+    volumes:
+      - chiefstaff-pg:/var/lib/postgresql/data
+
+volumes:
+  chiefstaff-pg:
