@@ -22,11 +22,11 @@ The gap between "runs" and "someone uses it every morning."
    is already there).
 3. **Real job queue.** `runPipeline` in a route handler doesn't survive a second
    user.
-4. **Triage eval set.** 100 hand-labelled signals with a should-surface verdict,
-   run on every prompt change. Without this, every prompt edit is a guess — and
-   triage precision *is* the product.
-5. **Feedback loop.** "Not mine" dismissals are the highest-quality training
-   signal available; today they're recorded and unused.
+4. **Grow the eval corpus** from 32 to ~100 cases, and add a second executive
+   persona — a corpus built around one COO will overfit the prompt to her.
+5. **Per-person calibration.** Dismissals currently go into the prompt as titles.
+   The next step is holding out a per-executive threshold and measuring whether
+   surfacing fewer, higher-confidence items raises daily usage.
 
 ## V2 — the second and third features people pay for
 

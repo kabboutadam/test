@@ -24,6 +24,9 @@ Claude-powered triage, open-loop tracking and brief generation all run. Ships
 with a seeded fictional COO so you can judge the output quality before
 connecting a real Google account.
 
+Triage is measured against a labelled eval corpus, and dismissals feed back into
+the next classification.
+
 Not yet built: Slack, meeting prep, ask-anything retrieval, delegate access,
 scheduled morning delivery. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -38,6 +41,28 @@ npm run seed              # a fictional COO with a realistic week of mail
 npm run pipeline          # ingest -> triage -> loops -> brief, printed to stdout
 npm run dev               # http://localhost:3000
 ```
+
+## Measuring triage
+
+Triage precision *is* the product, so it has an eval rather than an opinion.
+`evals/cases.ts` is a hand-labelled corpus of 32 signals — deliberately hard
+ones: asks buried under 200 words of status, a board member's polite "no rush"
+question, a vendor's ACTION REQUIRED that means nothing, a report narrating a
+problem they already own.
+
+```bash
+npm run eval                  # score the classifier against the corpus
+npm run eval -- --runs 3      # three passes; reports spread as well as mean
+npm run eval -- --dry-run     # prompt and corpus stats, no API calls
+```
+
+Precision is the headline: an inbox that surfaces noise gets skimmed and then
+ignored. But every miss prints in full with the model's own reasoning, because
+one missed escalation costs more than a month of small false positives. The run
+exits non-zero below 80% precision or 85% recall.
+
+Add a case whenever triage gets something wrong in real use. That is the whole
+maintenance loop.
 
 The seeded user is browsable with no Google credentials at all —
 `DEMO_USER_EMAIL` in `.env` signs you in as them.
@@ -91,4 +116,6 @@ src/core/                the pipeline: ingest, triage, loops, brief
 src/lib/claude.ts        every Claude call goes through here, schema-constrained
 src/app/                 Next.js app router surfaces
 scripts/run-pipeline.ts  what the morning cron calls
+evals/cases.ts           the labelled triage corpus — the real spec
+evals/run.ts             scores the classifier, prints every miss
 ```
