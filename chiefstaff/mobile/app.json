@@ -9,13 +9,13 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.adamkabbout.chiefstaff",
+      "bundleIdentifier": "com.kabbout.chiefstaff",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.adamkabbout.chiefstaff",
+      "package": "com.kabbout.chiefstaff",
       "edgeToEdgeEnabled": true
     },
     "plugins": [
