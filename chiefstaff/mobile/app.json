@@ -38,6 +38,12 @@
     "experiments": {
       "typedRoutes": true
     },
-    "owner": "akabbout"
+    "owner": "akabbout",
+    "updates": {
+      "url": "https://u.expo.dev/9a146b88-5535-46f3-88b6-2b921f777f5f"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }
