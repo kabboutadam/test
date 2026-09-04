@@ -11,15 +11,17 @@ Two clients — a phone app and a web app — over one server. The phone is the
 product: the brief lands there by push at brief hour. The web is where you
 connect Google and link the phone.
 
-Three surfaces, in the order they matter:
+Five surfaces, in the order they matter:
 
 | Surface | What it answers |
 |---|---|
-| **Decision inbox** | What needs me right now, and what should I say? |
-| **Waiting on** | What did I ask for that never came back? |
-| **Morning brief** | What changed overnight, in under 400 words? |
+| **Decision inbox** | What needs me right now, and what should I say? Approve, snooze, delegate, log it. |
+| **What moved** | Which numbers left their own normal range, against what, owned by whom? |
+| **Waiting on / you owe** | What did I ask for that never came back — and what did I promise? |
+| **Decision log** | What did we decide, what did we expect, and did it happen? |
+| **Morning brief** | All of the above in under 90 seconds, with 1:1 prep attached. |
 
-"Waiting on" is the one nobody ships and the one executives fall in love with.
+Product spec and section-by-section status: [`docs/SPEC-ALIGNMENT.md`](docs/SPEC-ALIGNMENT.md).
 
 ## Status
 
@@ -99,6 +101,15 @@ Timezone comes from the executive, not the server. With no `SMTP_URL` set the
 brief is printed to the console and left marked undelivered, so a misconfigured
 deployment is loud rather than silently swallowing the product's only
 notification.
+
+## Numbers in
+
+Metrics arrive as a CSV — the weekly spreadsheet a controller already sends —
+under **Moved → Import**: columns `metric, period, value`, optionally
+`segment, unit, good_when, owner`. Anomalies are detected against each metric's
+own last twelve periods, never a fixed threshold; "not useful" makes that metric
+quieter. QuickBooks, Toast and Gusto will feed the same table when their
+accounts exist. See `docs/SPEC-ALIGNMENT.md`.
 
 ## Measuring triage
 

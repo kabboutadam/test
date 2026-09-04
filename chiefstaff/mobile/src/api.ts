@@ -97,12 +97,62 @@ export interface Decision {
 
 export interface Loop {
   id: string;
+  direction: "owed_to_me" | "owed_by_me";
   ask: string;
   askedAt: string;
   dueAt: string | null;
   daysOpen: number;
   person: Person | null;
   url: string | null;
+}
+
+export interface Movement {
+  id: string;
+  sentence: string;
+  deviation: number;
+  periodStart: string;
+  metric: string;
+  segment: string;
+  owner: Person | null;
+}
+
+export interface DecisionRecord {
+  id: string;
+  title: string;
+  rationale: string;
+  expected: string;
+  category: string;
+  status: string;
+  outcome: string | null;
+  decidedAt: string;
+  reviewAt: string;
+  reviewRequested: boolean;
+  owner: Person | null;
+  metric: { name: string; expectedValue: number | null } | null;
+}
+
+export interface HitRates {
+  byCategory: { name: string; hit: number; miss: number; mixed: number; total: number; rate: number }[];
+  byDecider: { name: string; hit: number; miss: number; mixed: number; total: number; rate: number }[];
+  closed: number;
+}
+
+export interface PrepSection {
+  heading: string;
+  lines: string[];
+}
+
+export interface Prep {
+  id: string;
+  title: string;
+  startsAt: string;
+  person: Person | null;
+  sections: PrepSection[];
+}
+
+export interface PersonRow extends Person {
+  relationship: string;
+  importance: number;
 }
 
 export interface Me {
@@ -129,6 +179,20 @@ export const api = {
   decisions: () => call<{ decisions: Decision[] }>("/api/v1/decisions"),
   resolveDecision: (id: string, status: "approved" | "dismissed") =>
     call<{ ok: boolean }>(`/api/v1/decisions/${id}`, { method: "POST", body: JSON.stringify({ status }) }),
+  snoozeDecision: (id: string, days: number) =>
+    call<{ ok: boolean }>(`/api/v1/decisions/${id}`, { method: "POST", body: JSON.stringify({ status: "snoozed", days }) }),
+  delegateDecision: (id: string, to: string) =>
+    call<{ ok: boolean }>(`/api/v1/decisions/${id}`, { method: "POST", body: JSON.stringify({ status: "delegated", to }) }),
+  people: () => call<{ people: PersonRow[] }>("/api/v1/people"),
+  movements: () => call<{ movements: Movement[] }>("/api/v1/movements"),
+  markMovement: (id: string, status: "useful" | "not_useful") =>
+    call<{ ok: boolean }>(`/api/v1/movements/${id}`, { method: "POST", body: JSON.stringify({ status }) }),
+  decisionLog: () => call<{ records: DecisionRecord[]; rates: HitRates }>("/api/v1/decision-log"),
+  logDecision: (input: { title: string; expected: string; rationale?: string; category?: string; reviewDays?: number; owner?: string }) =>
+    call<{ id: string }>("/api/v1/decision-log", { method: "POST", body: JSON.stringify(input) }),
+  recordOutcome: (id: string, status: "hit" | "miss" | "mixed" | "dropped", outcome: string) =>
+    call<{ ok: boolean }>(`/api/v1/decision-log/${id}`, { method: "POST", body: JSON.stringify({ status, outcome }) }),
+  preps: () => call<{ preps: Prep[] }>("/api/v1/preps"),
   loops: () => call<{ loops: Loop[] }>("/api/v1/loops"),
   closeLoop: (id: string, status: "answered" | "dropped") =>
     call<{ ok: boolean }>(`/api/v1/loops/${id}`, { method: "POST", body: JSON.stringify({ status }) }),

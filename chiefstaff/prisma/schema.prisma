@@ -34,6 +34,10 @@ model User {
   linkCodes   LinkCode[]
   apiTokens   ApiToken[]
   devices     Device[]
+  metrics     Metric[]
+  movements   Movement[]
+  records     DecisionRecord[]
+  preps       MeetingPrep[]
 }
 
 /// A connected source account (today: Google Workspace).
@@ -76,8 +80,13 @@ model Person {
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   signals   Signal[]
-  decisions Decision[]
+  decisions Decision[]   @relation("DecisionPerson")
+  delegated Decision[]   @relation("DecisionDelegate")
   loops     Loop[]
+  metrics   Metric[]
+  owned     DecisionRecord[] @relation("RecordOwner")
+  decided   DecisionRecord[] @relation("RecordDecider")
+  preps     MeetingPrep[]
 
   @@unique([userId, email])
   @@index([userId, importance])
@@ -138,17 +147,23 @@ model Decision {
   draft     String? @db.Text
   draftKind String?
 
-  /// open | approved | dismissed | done
+  /// open | approved | dismissed | done | delegated | snoozed
   status     String    @default("open")
   dueAt      DateTime?
+  /// Hidden from the inbox and brief until this passes; then reopened.
+  snoozedUntil DateTime?
+  /// Delegating creates a Loop: the executive is now waiting on this person.
+  delegatedToId String?
   /// [{ label, url }] pointing back at source material.
   citations  Json      @default("[]")
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  signal Signal? @relation(fields: [signalId], references: [id], onDelete: SetNull)
-  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signal      Signal? @relation(fields: [signalId], references: [id], onDelete: SetNull)
+  person      Person? @relation("DecisionPerson", fields: [personId], references: [id], onDelete: SetNull)
+  delegatedTo Person? @relation("DecisionDelegate", fields: [delegatedToId], references: [id], onDelete: SetNull)
+  records     DecisionRecord[]
 
   @@index([userId, status, urgency])
 }
@@ -164,6 +179,9 @@ model Loop {
   askedAt   DateTime
   /// When the executive said they needed it, if they said.
   dueAt     DateTime?
+  /// owed_to_me: they promised the executive. owed_by_me: the executive
+  /// promised them. Both matter in a 1:1; only the first is "waiting on".
+  direction String    @default("owed_to_me")
   /// waiting | answered | dropped
   status    String    @default("waiting")
   lastNudge DateTime?
@@ -236,4 +254,132 @@ model Device {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// A number the executive watches. Rows come from a spreadsheet import today
+/// and from QuickBooks / Toast / Gusto connectors tomorrow — all feed the same
+/// shape, so "what moved" never knows where a number came from.
+model Metric {
+  id        String  @id @default(cuid())
+  userId    String
+  /// Stable key within a user, e.g. "labor_pct". Segment makes it per-location.
+  key       String
+  name      String
+  unit      String  @default("")
+  /// A location, business line or team. Empty for company-wide.
+  segment   String  @default("")
+  /// up | down | neutral — which way is good news.
+  goodWhen  String  @default("neutral")
+  /// Standard deviations from the metric's own history before it "moved".
+  /// Tunable per metric, per the spec; 2.0 is deliberately conservative.
+  sensitivity Float @default(2)
+  /// Who owns this number. Feeds "who to talk to" and 1:1 prep.
+  ownerId   String?
+  source    String  @default("csv")
+  muted     Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  owner     Person?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  points    MetricPoint[]
+  movements Movement[]
+  records   DecisionRecord[]
+
+  @@unique([userId, key, segment])
+}
+
+model MetricPoint {
+  id          String   @id @default(cuid())
+  metricId    String
+  periodStart DateTime @db.Date
+  value       Float
+  source      String   @default("csv")
+  createdAt   DateTime @default(now())
+
+  metric Metric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+
+  @@unique([metricId, periodStart])
+  @@index([metricId, periodStart])
+}
+
+/// A metric that left its own normal range. One per metric per period, so a
+/// re-run never duplicates. "Not useful" from the executive raises that
+/// metric's sensitivity — the tuning loop the spec asks for.
+model Movement {
+  id          String   @id @default(cuid())
+  userId      String
+  metricId    String
+  periodStart DateTime @db.Date
+  value       Float
+  baseline    Float
+  /// Signed standard deviations from baseline.
+  deviation   Float
+  /// The sentence that goes in the brief. Plain, with the comparison basis.
+  sentence    String   @db.Text
+  /// open | useful | not_useful
+  status      String   @default("open")
+  createdAt   DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metric Metric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+
+  @@unique([metricId, periodStart])
+  @@index([userId, status, createdAt])
+}
+
+/// The Decision Log (spec 5.2): a decision recorded with the expectation
+/// behind it, so the loop can be closed on the review date.
+model DecisionRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  rationale String   @db.Text
+  decidedAt DateTime @default(now())
+  deciderId String?
+  ownerId   String?
+  /// hiring | spend | pricing | ops | people | strategy | other
+  category  String   @default("other")
+  /// The expected outcome, as a measurable claim where possible.
+  expected  String   @db.Text
+  /// When expectation is measurable: the metric and value it should reach.
+  metricId      String?
+  expectedValue Float?
+  reviewAt  DateTime
+  /// Set when the review lands in the inbox, so it lands once.
+  reviewRequestedAt DateTime?
+  /// open | hit | miss | mixed | dropped
+  status      String    @default("open")
+  outcome     String?   @db.Text
+  reviewedAt  DateTime?
+  /// The inbox item this was logged from, if any.
+  fromDecisionId String?
+  createdAt   DateTime  @default(now())
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decider Person?   @relation("RecordDecider", fields: [deciderId], references: [id], onDelete: SetNull)
+  owner   Person?   @relation("RecordOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  metric  Metric?   @relation(fields: [metricId], references: [id], onDelete: SetNull)
+  from    Decision? @relation(fields: [fromDecisionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, reviewAt])
+}
+
+/// Prep for one meeting (spec 5.4), generated ahead of it. Stored so the
+/// brief, the web and the phone all show the same thing.
+model MeetingPrep {
+  id          String   @id @default(cuid())
+  userId      String
+  /// The calendar Signal this is for.
+  signalId    String   @unique
+  personId    String?
+  startsAt    DateTime
+  title       String
+  /// Rendered sections: [{ heading, lines: string[] }]
+  sections    Json
+  generatedAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startsAt])
 }

@@ -11,6 +11,16 @@ Ordered by what the product needs, not by what's easy.
 - Daily brief
 - Seeded demo executive so output quality is judgeable without credentials
 
+## Next, per the product spec (docs/SPEC-ALIGNMENT.md)
+
+1. **QuickBooks Online, Toast, Gusto** — each needs a developer account; each
+   maps onto `Metric`. Start with whichever account exists first.
+2. **Slack** — feeds `Signal`; commitment tracking gets its second source.
+3. **Cause inference for "what moved"** — one model call over related metrics
+   for the same segment and period.
+4. **30-minutes-before prep push** — a scheduler tick; the prep already exists.
+5. **Email-forward capture** into the decision log — needs an inbound address.
+
 ## V1.1 — make it real for one person
 
 The gap between "runs" and "someone uses it every morning."

@@ -6,9 +6,13 @@ import { DecisionCard } from "@/components/DecisionCard";
 import { Empty, Lede, Screen, Title } from "@/components/ui";
 
 export default function InboxScreen() {
-  const load = useCallback(() => api.decisions(), []);
+  const load = useCallback(async () => {
+    const [inbox, roster] = await Promise.all([api.decisions(), api.people().catch(() => ({ people: [] }))]);
+    return { ...inbox, people: roster.people };
+  }, []);
   const { data, error, loading, refresh } = useFetch(load);
   const decisions = data?.decisions ?? [];
+  const people = data?.people ?? [];
 
   return (
     <Screen>
@@ -25,7 +29,7 @@ export default function InboxScreen() {
                 : `${decisions.length} ${decisions.length === 1 ? "thing needs" : "things need"} you. Nothing sends without your approval.`)}
           </Lede>
           {decisions.map((decision) => (
-            <DecisionCard key={decision.id} decision={decision} onResolved={() => void refresh()} />
+            <DecisionCard key={decision.id} decision={decision} people={people} onResolved={() => void refresh()} />
           ))}
           {!loading && decisions.length === 0 && !error && (
             <Empty>Everything triaged so far has been handled or was never yours.</Empty>

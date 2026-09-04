@@ -42,7 +42,8 @@ function LoopCard({ loop, onClosed }: { loop: Loop; onClosed: () => void }) {
 export default function WaitingScreen() {
   const load = useCallback(() => api.loops(), []);
   const { data, error, loading, refresh } = useFetch(load);
-  const loops = data?.loops ?? [];
+  const loops = (data?.loops ?? []).filter((loop) => loop.direction !== "owed_by_me");
+  const mine = (data?.loops ?? []).filter((loop) => loop.direction === "owed_by_me");
 
   return (
     <Screen>
@@ -57,6 +58,15 @@ export default function WaitingScreen() {
             <LoopCard key={loop.id} loop={loop} onClosed={() => void refresh()} />
           ))}
           {!loading && loops.length === 0 && !error && <Empty>Nothing outstanding. Everyone has come back to you.</Empty>}
+          {mine.length > 0 && (
+            <>
+              <Title>You owe</Title>
+              <Lede>Things you said you’d do.</Lede>
+              {mine.map((loop) => (
+                <LoopCard key={loop.id} loop={loop} onClosed={() => void refresh()} />
+              ))}
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     </Screen>

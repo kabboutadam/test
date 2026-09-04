@@ -4,8 +4,10 @@ import { db } from "@/lib/db";
 import { extract } from "@/lib/claude";
 
 const DetectedLoop = z.object({
-  /** Address of the person who owes the answer. */
+  /** Address of the other party. */
   owed_by: z.string(),
+  /** owed_to_me: they promised the executive. owed_by_me: the executive promised them. */
+  direction: z.enum(["owed_to_me", "owed_by_me"]),
   /** The ask, as the executive would recognize it. */
   ask: z.string(),
   asked_at: z.string(),
@@ -31,11 +33,18 @@ someone for that have not come back.
 This is the feature they will care about most, because nobody else does it and
 they cannot hold it in their head. Be precise.
 
-Open a loop when the executive asked a specific person for something specific —
-a number, a document, a decision, an introduction, a status — and no answer is
-visible in the signals you can see. Do not open a loop for pleasantries,
-rhetorical questions, standing meetings, or things the executive said they would
-do themselves.
+Open a loop in two cases:
+
+- direction owed_to_me: the executive asked a specific person for something
+  specific — a number, a document, a decision, an introduction, a status — and
+  no answer is visible in the signals you can see.
+- direction owed_by_me: the executive told a specific person they would do
+  something specific — "I'll send you the deck by Friday", "I'll make the
+  intro" — and nothing visible shows it done. These matter as much: a 1:1
+  needs both sides of the ledger.
+
+Do not open a loop for pleasantries, rhetorical questions, or standing
+meetings. In owed_by, put the other party's address in both directions.
 
 Close a loop when a later signal shows the person answered it (resolution:
 answered), or when it has clearly been overtaken by events and no longer matters
@@ -68,7 +77,7 @@ export async function trackLoops(user: User): Promise<{ opened: number; closed: 
     "Currently open loops:",
     openLoops.length
       ? openLoops
-          .map((loop) => `- id=${loop.id} owed_by=${loop.person?.email ?? "?"} asked=${loop.askedAt.toISOString()} ask="${loop.ask}"`)
+          .map((loop) => `- id=${loop.id} direction=${loop.direction} other=${loop.person?.email ?? "?"} asked=${loop.askedAt.toISOString()} ask="${loop.ask}"`)
           .join("\n")
       : "(none)",
     "",
@@ -93,7 +102,10 @@ export async function trackLoops(user: User): Promise<{ opened: number; closed: 
 
     // Same ask to the same person twice is one loop, not two.
     const duplicate = openLoops.some(
-      (existing) => existing.person?.email === loop.owed_by.toLowerCase() && existing.ask === loop.ask,
+      (existing) =>
+        existing.person?.email === loop.owed_by.toLowerCase() &&
+        existing.direction === loop.direction &&
+        existing.ask === loop.ask,
     );
     if (duplicate) continue;
 
@@ -104,6 +116,7 @@ export async function trackLoops(user: User): Promise<{ opened: number; closed: 
         personId: person?.id ?? null,
         signalId: signals[loop.signal_index]?.id ?? null,
         ask: loop.ask,
+        direction: loop.direction,
         askedAt: Number.isNaN(askedAt.getTime()) ? new Date() : askedAt,
         dueAt: loop.due_at ? new Date(loop.due_at) : null,
       },

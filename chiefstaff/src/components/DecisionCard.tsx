@@ -1,5 +1,6 @@
+import Link from "next/link";
 import type { Decision, Person } from "@prisma/client";
-import { resolveDecision } from "@/app/inbox/actions";
+import { delegateDecision, resolveDecision, snoozeDecision } from "@/app/inbox/actions";
 
 const URGENCY_LABEL = ["whenever", "this week", "today", "now"];
 
@@ -8,8 +9,15 @@ interface Citation {
   url: string;
 }
 
-export function DecisionCard({ decision }: { decision: Decision & { person: Person | null } }) {
+export function DecisionCard({
+  decision,
+  people,
+}: {
+  decision: Decision & { person: Person | null };
+  people: Pick<Person, "email" | "name">[];
+}) {
   const citations = (decision.citations as unknown as Citation[]) ?? [];
+  const logHref = `/decisions?from=${decision.id}&title=${encodeURIComponent(decision.title)}&why=${encodeURIComponent(decision.why)}`;
 
   return (
     <article className="card">
@@ -18,9 +26,7 @@ export function DecisionCard({ decision }: { decision: Decision & { person: Pers
         <span className="tag">{decision.category}</span>
         {decision.person && <span>{decision.person.name ?? decision.person.email}</span>}
         {citations.map((citation) => (
-          <a key={citation.url} href={citation.url} target="_blank" rel="noreferrer">
-            source
-          </a>
+          <a key={citation.url} href={citation.url} target="_blank" rel="noreferrer">source</a>
         ))}
       </div>
 
@@ -29,25 +35,37 @@ export function DecisionCard({ decision }: { decision: Decision & { person: Pers
 
       {decision.draft && <pre className="draft">{decision.draft}</pre>}
 
-      <form className="actions">
-        <button
-          className="primary"
-          formAction={async () => {
-            "use server";
-            await resolveDecision(decision.id, "approved");
-          }}
-        >
+      <form className="actions" style={{ flexWrap: "wrap" }}>
+        <button className="primary" formAction={async () => { "use server"; await resolveDecision(decision.id, "approved"); }}>
           {decision.draftKind === "email_reply" ? "Approve draft" : "Got it"}
         </button>
-        <button
-          formAction={async () => {
+        <button formAction={async () => { "use server"; await resolveDecision(decision.id, "dismissed"); }}>Not mine</button>
+        <button formAction={async () => { "use server"; await snoozeDecision(decision.id, 1); }}>Tomorrow</button>
+        <button formAction={async () => { "use server"; await snoozeDecision(decision.id, 7); }}>Next week</button>
+        {decision.category !== "review" && (
+          <Link href={logHref} style={{ fontSize: 13, marginLeft: 4 }}>log as decision</Link>
+        )}
+      </form>
+
+      {people.length > 0 && (
+        <form
+          className="actions"
+          style={{ marginTop: 8 }}
+          action={async (formData: FormData) => {
             "use server";
-            await resolveDecision(decision.id, "dismissed");
+            const to = String(formData.get("to") ?? "");
+            if (to) await delegateDecision(decision.id, to);
           }}
         >
-          Not mine
-        </button>
-      </form>
+          <select name="to" defaultValue="">
+            <option value="">delegate to…</option>
+            {people.map((person) => (
+              <option key={person.email} value={person.email}>{person.name ?? person.email}</option>
+            ))}
+          </select>
+          <button>Delegate</button>
+        </form>
+      )}
     </article>
   );
 }

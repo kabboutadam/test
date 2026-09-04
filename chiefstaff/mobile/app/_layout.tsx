@@ -27,6 +27,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="link" />
+        <Stack.Screen name="prep/[id]" options={{ headerShown: true, title: "Prep" }} />
       </Stack>
     </>
   );

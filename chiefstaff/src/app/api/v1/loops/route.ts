@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   return json({
     loops: loops.map((loop) => ({
       id: loop.id,
+      direction: loop.direction,
       ask: loop.ask,
       askedAt: loop.askedAt.toISOString(),
       dueAt: loop.dueAt?.toISOString() ?? null,

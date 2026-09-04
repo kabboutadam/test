@@ -240,8 +240,41 @@ async function main() {
   // resolution and filtering as anything from Google.
   const { storeSignals } = await import("../src/core/ingest");
   const result = await storeSignals(user, SIGNALS);
-
   console.log(`Seeded ${user.email}:`, result);
+
+  // Thirteen weeks of numbers, the shape a controller's Monday spreadsheet
+  // has, with one real anomaly: Rotterdam labour spikes in the latest week.
+  const { importMetricRows } = await import("../src/core/metrics");
+  const week = (n: number) => new Date(Date.UTC(2026, 5, 1 + n * 7));
+  const rows = [];
+  const labour = { Rotterdam: [27.5, 28.1, 27.9, 28.4, 27.7, 28.0, 28.3, 27.8, 28.2, 27.6, 28.1, 27.9, 34.1], Antwerp: [30.2, 29.8, 30.5, 30.1, 29.9, 30.4, 30.0, 30.3, 29.7, 30.2, 30.1, 29.9, 30.3] };
+  const onTime = [96.1, 95.8, 96.4, 96.0, 95.9, 96.2, 96.3, 95.7, 96.1, 96.0, 95.8, 96.2, 96.0];
+  const arAging = [412, 398, 425, 407, 415, 402, 419, 410, 396, 408, 421, 404, 411];
+  for (let n = 0; n < 13; n++) {
+    for (const [segment, series] of Object.entries(labour)) {
+      rows.push({ key: "labour_pct", name: "Labour cost", segment, period: week(n), value: series[n], unit: "%", goodWhen: "down" as const, owner: segment === "Antwerp" ? "ines@northwind.example" : "tomas@northwind.example" });
+    }
+    rows.push({ key: "on_time_pct", name: "On-time delivery", segment: "", period: week(n), value: onTime[n], unit: "%", goodWhen: "up" as const, owner: "" });
+    rows.push({ key: "ar_over_60", name: "AR over 60 days", segment: "", period: week(n), value: arAging[n] * 1000, unit: "€", goodWhen: "down" as const, owner: "sarah@northwind.example" });
+  }
+  console.log("Seeded metrics:", await importMetricRows(user, rows));
+
+  // A decision whose review date has passed, so loop-closing has work to do.
+  const { logDecision } = await import("../src/core/decision-log");
+  const existing = await db.decisionRecord.count({ where: { userId: user.id } });
+  if (existing === 0) {
+    await logDecision(user, {
+      title: "Move Rotterdam overflow to the secondary carrier",
+      rationale: "Primary carrier capped capacity over peak; secondary offered guaranteed slots at +6%.",
+      expected: "On-time delivery stays above 95% through peak at no more than €40k extra cost",
+      category: "ops",
+      reviewAt: new Date(Date.now() - 86_400_000),
+      ownerEmail: "tomas@northwind.example",
+    });
+    await db.decisionRecord.updateMany({ where: { userId: user.id }, data: { decidedAt: new Date(Date.now() - 61 * 86_400_000) } });
+    console.log("Seeded a decision due for review");
+  }
+
   console.log("Next: npm run pipeline");
 }
 

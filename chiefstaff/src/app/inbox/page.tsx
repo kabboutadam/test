@@ -10,11 +10,19 @@ export default async function InboxPage() {
   const user = await currentUser();
   if (!user) return <SignedOut />;
 
-  const decisions = await db.decision.findMany({
-    where: { userId: user.id, status: "open" },
-    orderBy: [{ urgency: "desc" }, { createdAt: "desc" }],
-    include: { person: true },
-  });
+  const [decisions, people] = await Promise.all([
+    db.decision.findMany({
+      where: { userId: user.id, status: "open" },
+      orderBy: [{ urgency: "desc" }, { createdAt: "desc" }],
+      include: { person: true },
+    }),
+    db.person.findMany({
+      where: { userId: user.id, importance: { gte: 10 } },
+      orderBy: { importance: "desc" },
+      take: 20,
+      select: { email: true, name: true },
+    }),
+  ]);
 
   return (
     <main>
@@ -26,7 +34,7 @@ export default async function InboxPage() {
       </p>
 
       {decisions.map((decision) => (
-        <DecisionCard key={decision.id} decision={decision} />
+        <DecisionCard key={decision.id} decision={decision} people={people} />
       ))}
 
       {decisions.length === 0 && (

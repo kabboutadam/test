@@ -117,3 +117,15 @@ button.primary { background: var(--ink); color: var(--bg); border-color: var(--i
 .brief-body li { margin-bottom: 4px; }
 
 .stale { color: var(--urgent); }
+
+input, select, textarea {
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+}
+textarea { resize: vertical; }
+label { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
