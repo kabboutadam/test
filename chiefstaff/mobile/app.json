@@ -29,10 +29,15 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://localhost:3000"
+      "apiUrl": "http://localhost:3000",
+      "router": {},
+      "eas": {
+        "projectId": "9a146b88-5535-46f3-88b6-2b921f777f5f"
+      }
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "akabbout"
   }
 }
