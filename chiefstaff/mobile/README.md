@@ -15,6 +15,16 @@ set `expo.extra.apiUrl` in `app.json` to your computer's Wi-Fi address, for
 example `http://192.168.1.20:3000`, with the server running (`npm run dev` in
 the parent folder). Then on the web: Settings → Link your phone.
 
+## Why reanimated and worklets are pinned
+
+Nothing in the dependency tree pins `react-native-reanimated`, so a fresh
+install takes the newest 4.x, which requires a newer `react-native-worklets`
+than Expo's core in this SDK was built against. The native build then fails
+with `no member named 'executeSync' in 'worklets::WorkletRuntime'`. The pins
+in `package.json` (and the matching `overrides`) are the versions from Expo
+SDK 56's own `bundledNativeModules.json`. When upgrading the SDK, update them
+from that file, or run `npx expo install --fix`.
+
 ## TestFlight (needs an Apple Developer account, $99/year)
 
 Push notifications on iPhone require the paid Apple Developer Program. There is
