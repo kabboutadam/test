@@ -46,14 +46,19 @@ npm run dev               # http://localhost:3000
 ## The morning run
 
 ```bash
-npm run worker                # poll every 5 minutes
-npm run worker -- --once      # a single pass, for cron
+npm run worker                # consume jobs and schedule, forever
+npm run worker -- --once      # one scheduler pass, drain, exit (cron)
 ```
 
-For each executive, once their local clock passes `briefHour`: run the pipeline,
-generate the brief, email it. Idempotent at two points — a brief already
-generated for today is not regenerated, and a brief already delivered is not
-sent again — so a poll, a cron and a manual run can overlap safely.
+For each executive, once their local clock passes `briefHour`: queue a pipeline
+run, then a delivery. Work goes through pg-boss on the Postgres already here —
+no Redis — because the morning fans out to one expensive job per executive, and
+a request handler owning N Claude calls stops working at the second customer.
+
+Idempotent at three points, so a poll, a cron and someone hammering "Sync now"
+can overlap safely: duplicate jobs collapse on the singleton key, a brief
+already generated for today is not regenerated, and one already delivered is not
+sent again.
 
 Timezone comes from the executive, not the server. With no `SMTP_URL` set the
 brief is printed to the console and left marked undelivered, so a misconfigured
@@ -136,7 +141,8 @@ src/app/                 Next.js app router surfaces
 scripts/run-pipeline.ts  what the morning cron calls
 evals/cases.ts           the labelled triage corpus — the real spec
 evals/run.ts             scores the classifier, prints every miss
-scripts/worker.ts        the morning run: generate, then deliver
+scripts/worker.ts        queue consumer + morning scheduler
+src/jobs/queue.ts        two queues on pg-boss; policy notes matter here
 src/core/deliver.ts      brief -> email, idempotent on deliveredAt
 src/lib/time.ts          everything timezone-shaped, via Intl
 ```

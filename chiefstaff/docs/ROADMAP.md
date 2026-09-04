@@ -17,10 +17,10 @@ The gap between "runs" and "someone uses it every morning."
 
 1. **Mobile push.** Email delivery ships; push does not. Email is where a brief
    goes to be read at 09:40, and the product promises 06:00.
-2. **Incremental Gmail sync** using `historyId` (the `Connection.cursor` column
-   is already there).
-3. **Real job queue.** `runPipeline` in a route handler doesn't survive a second
-   user.
+2. **Gmail push notifications** (`users.watch` + Pub/Sub). Incremental sync
+   makes polling cheap; push makes it immediate, which matters for escalations.
+3. **Operational visibility.** Queue depth, failed jobs and per-executive sync
+   health are currently only visible in Postgres.
 4. **Grow the eval corpus** from 32 to ~100 cases, and add a second executive
    persona — a corpus built around one COO will overfit the prompt to her.
 5. **Per-person calibration.** Dismissals currently go into the prompt as titles.

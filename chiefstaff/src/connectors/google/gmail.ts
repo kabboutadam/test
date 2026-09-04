@@ -4,7 +4,26 @@ import { clientFor } from "./oauth";
 import type { RawSignal } from "../types";
 
 /** Bounded so a first sync on a 200k-message mailbox doesn't run for an hour. */
-const MAX_MESSAGES = 150;
+const BACKFILL_LIMIT = 150;
+/** A quiet night adds a handful of messages; a burst is still bounded. */
+const INCREMENTAL_LIMIT = 300;
+
+/** Labels whose messages never need an executive. SENT is deliberately absent —
+ *  the executive's own outbound is how open loops are detected. */
+const EXCLUDED_LABELS = new Set([
+  "SPAM",
+  "TRASH",
+  "DRAFT",
+  "CHAT",
+  "CATEGORY_PROMOTIONS",
+  "CATEGORY_SOCIAL",
+]);
+
+export interface GmailFetch {
+  signals: RawSignal[];
+  /** Gmail historyId to resume from next time. */
+  cursor: string | null;
+}
 
 interface Address {
   email: string;
@@ -53,52 +72,127 @@ function extractBody(part: gmail_v1.Schema$MessagePart | undefined): string {
   return "";
 }
 
-/**
- * Recent mail that plausibly needs the executive. The query does the cheap
- * filtering (no promotions, no bulk) so Claude only ever sees candidates.
- */
-export async function fetchGmail(connection: Connection): Promise<RawSignal[]> {
-  const gmail = google.gmail({ version: "v1", auth: await clientFor(connection) });
+function toSignal(message: gmail_v1.Schema$Message): RawSignal | null {
+  if (!message.id) return null;
+  if ((message.labelIds ?? []).some((label) => EXCLUDED_LABELS.has(label))) return null;
 
-  const list = await gmail.users.messages.list({
+  const from = parseAddresses(header(message, "From"))[0];
+  const participants = [
+    ...parseAddresses(header(message, "From")),
+    ...parseAddresses(header(message, "To")),
+    ...parseAddresses(header(message, "Cc")),
+  ].map((address) => address.email);
+
+  return {
+    source: "gmail",
+    externalId: message.id,
+    kind: "email",
+    threadKey: message.threadId ?? undefined,
+    subject: header(message, "Subject") ?? "(no subject)",
+    snippet: message.snippet ?? "",
+    // Long threads add cost without adding signal; the tail is the ask.
+    body: extractBody(message.payload).slice(0, 12_000),
+    url: `https://mail.google.com/mail/u/0/#inbox/${message.threadId}`,
+    occurredAt: new Date(Number(message.internalDate ?? Date.now())),
+    fromEmail: from?.email,
+    fromName: from?.name,
+    participants: [...new Set(participants)],
+  };
+}
+
+async function hydrate(gmail: gmail_v1.Gmail, ids: string[]): Promise<RawSignal[]> {
+  const signals: RawSignal[] = [];
+  for (const id of ids) {
+    try {
+      const { data } = await gmail.users.messages.get({ userId: "me", id, format: "full" });
+      const signal = toSignal(data);
+      if (signal) signals.push(signal);
+    } catch (error) {
+      // A message deleted between listing and fetching is normal, not fatal.
+      if (statusOf(error) !== 404) throw error;
+    }
+  }
+  return signals;
+}
+
+function statusOf(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  const candidate = error as { code?: unknown; status?: unknown };
+  const value = typeof candidate.code === "number" ? candidate.code : candidate.status;
+  return typeof value === "number" ? value : undefined;
+}
+
+/** First sync for a connection: a bounded recent window. */
+async function backfill(gmail: gmail_v1.Gmail): Promise<GmailFetch> {
+  // Read the watermark BEFORE listing. Anything that lands mid-backfill is then
+  // re-seen on the next incremental pass and deduped on (user, source, id) —
+  // whereas reading it afterwards would skip those messages forever.
+  const { data: profile } = await gmail.users.getProfile({ userId: "me" });
+
+  const { data: list } = await gmail.users.messages.list({
     userId: "me",
-    maxResults: MAX_MESSAGES,
+    maxResults: BACKFILL_LIMIT,
     q: "newer_than:7d -category:promotions -category:social -in:chats",
   });
 
-  const signals: RawSignal[] = [];
+  const ids = (list.messages ?? []).map((stub) => stub.id).filter((id): id is string => Boolean(id));
+  return { signals: await hydrate(gmail, ids), cursor: profile.historyId ?? null };
+}
 
-  for (const stub of list.data.messages ?? []) {
-    if (!stub.id) continue;
-    const { data: message } = await gmail.users.messages.get({
+/**
+ * Everything added since the last sync. This is the common path and it is
+ * usually one API call returning nothing — as against the 150 the backfill
+ * costs, which is what re-listing on every run used to do.
+ */
+async function incremental(gmail: gmail_v1.Gmail, startHistoryId: string): Promise<GmailFetch> {
+  const ids = new Set<string>();
+  let cursor: string | null = startHistoryId;
+  let pageToken: string | undefined;
+
+  do {
+    const { data }: { data: gmail_v1.Schema$ListHistoryResponse } = await gmail.users.history.list({
       userId: "me",
-      id: stub.id,
-      format: "full",
+      startHistoryId,
+      historyTypes: ["messageAdded"],
+      maxResults: 500,
+      pageToken,
     });
 
-    const from = parseAddresses(header(message, "From"))[0];
-    const participants = [
-      ...parseAddresses(header(message, "From")),
-      ...parseAddresses(header(message, "To")),
-      ...parseAddresses(header(message, "Cc")),
-    ].map((address) => address.email);
+    for (const entry of data.history ?? []) {
+      for (const added of entry.messagesAdded ?? []) {
+        const message = added.message;
+        if (!message?.id) continue;
+        // History carries labels, so promotions and chatter are dropped before
+        // we spend a fetch on them.
+        if ((message.labelIds ?? []).some((label) => EXCLUDED_LABELS.has(label))) continue;
+        ids.add(message.id);
+      }
+    }
 
-    signals.push({
-      source: "gmail",
-      externalId: message.id!,
-      kind: "email",
-      threadKey: message.threadId ?? undefined,
-      subject: header(message, "Subject") ?? "(no subject)",
-      snippet: message.snippet ?? "",
-      // Long threads add cost without adding signal; the tail is the ask.
-      body: extractBody(message.payload).slice(0, 12_000),
-      url: `https://mail.google.com/mail/u/0/#inbox/${message.threadId}`,
-      occurredAt: new Date(Number(message.internalDate ?? Date.now())),
-      fromEmail: from?.email,
-      fromName: from?.name,
-      participants: [...new Set(participants)],
-    });
+    cursor = data.historyId ?? cursor;
+    pageToken = data.nextPageToken ?? undefined;
+  } while (pageToken && ids.size < INCREMENTAL_LIMIT);
+
+  return { signals: await hydrate(gmail, [...ids].slice(0, INCREMENTAL_LIMIT)), cursor };
+}
+
+/**
+ * Recent mail that plausibly needs the executive, resuming from the stored
+ * cursor when there is one.
+ */
+export async function fetchGmail(connection: Connection): Promise<GmailFetch> {
+  const gmail = google.gmail({ version: "v1", auth: await clientFor(connection) });
+
+  if (connection.cursor) {
+    try {
+      return await incremental(gmail, connection.cursor);
+    } catch (error) {
+      // Gmail expires history after about a week. A 404 means the cursor is
+      // too old to resume from, which is a backfill, not an outage.
+      if (statusOf(error) !== 404) throw error;
+      console.warn(`gmail: history cursor expired for ${connection.accountEmail}, backfilling`);
+    }
   }
 
-  return signals;
+  return backfill(gmail);
 }

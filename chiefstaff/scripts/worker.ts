@@ -1,20 +1,33 @@
 /**
- * The morning run.
+ * The background worker: queue consumer plus the morning scheduler.
  *
- *   npm run worker              poll every 5 minutes
- *   npm run worker -- --once    a single pass, for cron
+ *   npm run worker                 consume jobs and schedule, forever
+ *   npm run worker -- --once       one scheduler pass, drain, exit (cron)
  *   npm run worker -- --user dana@northwind.example
  *
- * Each executive gets exactly one brief per local day. The work is idempotent
- * at two points — a brief already generated for today is not regenerated, and a
- * brief already delivered is not sent again — so running this on a five-minute
- * poll, a cron, and by hand at the same time is safe.
+ * Work is queued rather than run inline because the morning fans out to one
+ * expensive job per executive, and a request handler owning N Claude calls
+ * stops working at the second customer.
+ *
+ * Idempotent at three points, so a poll, a cron and a manual run can overlap:
+ * a pending job for an executive collapses on its singleton key, a brief
+ * already generated for today is not regenerated, and one already delivered is
+ * not sent again.
  */
 import { PrismaClient, type User } from "@prisma/client";
 import { runPipeline } from "../src/core/pipeline";
 import { briefForToday, deliverBrief } from "../src/core/deliver";
 import { mailConfigured } from "../src/lib/mail";
 import { isBriefDue, localClock } from "../src/lib/time";
+import {
+  QUEUES,
+  enqueueDelivery,
+  enqueuePipeline,
+  queue,
+  stopQueue,
+  type DeliverJob,
+  type PipelineJob,
+} from "../src/jobs/queue";
 
 const db = new PrismaClient();
 
@@ -35,28 +48,66 @@ function parseArgs(argv: string[]): Options {
   return options;
 }
 
-async function serve(user: User, now: Date): Promise<string> {
-  const clock = localClock(now, user.timezone);
+/** Jobs this process has queued and not yet finished. Drives --once draining. */
+let outstanding = 0;
 
-  if (!isBriefDue(user, now)) {
-    return `waiting — ${clock} local, brief at ${String(user.briefHour).padStart(2, "0")}:00`;
+// ---------------------------------------------------------------- handlers
+
+async function handlePipeline(data: PipelineJob): Promise<void> {
+  const user = await db.user.findUnique({ where: { id: data.userId } });
+  if (!user) return;
+
+  const result = await runPipeline(user);
+  console.log(
+    `  ${user.email}: ${result.ingest.stored} new signals, ${result.triage.created} decisions, ` +
+      `${result.loops.opened} loops opened (${data.reason})`,
+  );
+
+  const brief = await briefForToday(user);
+  if (brief && !brief.deliveredAt) {
+    outstanding++;
+    await enqueueDelivery(user.id, brief.id);
   }
+}
 
-  let brief = await briefForToday(user, now);
-  if (brief?.deliveredAt) return `done — delivered ${localClock(brief.deliveredAt, user.timezone)} local`;
-
-  if (!brief) {
-    const result = await runPipeline(user);
-    brief = await briefForToday(user, now);
-    if (!brief) return `no brief produced (${result.ingest.stored} new signals)`;
-    console.log(
-      `    pipeline: ${result.ingest.stored} new signals, ${result.triage.created} decisions, ` +
-        `${result.loops.opened} loops opened`,
-    );
-  }
+async function handleDeliver(data: DeliverJob): Promise<void> {
+  const [user, brief] = await Promise.all([
+    db.user.findUnique({ where: { id: data.userId } }),
+    db.brief.findUnique({ where: { id: data.briefId } }),
+  ]);
+  if (!user || !brief) return;
 
   const delivery = await deliverBrief(user, brief);
-  return delivery.delivered ? `delivered to ${user.email}` : `not delivered — ${delivery.reason}`;
+  console.log(
+    `  ${user.email}: ${delivery.delivered ? "brief delivered" : `not delivered — ${delivery.reason}`}`,
+  );
+}
+
+// --------------------------------------------------------------- scheduler
+
+/** Decide what, if anything, this executive needs right now. */
+async function schedule(user: User, now: Date): Promise<string> {
+  if (!isBriefDue(user, now)) {
+    return `waiting — ${localClock(now, user.timezone)} local, brief at ${String(user.briefHour).padStart(2, "0")}:00`;
+  }
+
+  const brief = await briefForToday(user, now);
+
+  if (brief?.deliveredAt) {
+    return `done — delivered ${localClock(brief.deliveredAt, user.timezone)} local`;
+  }
+
+  // A brief that exists but never went out needs delivery, not another
+  // pipeline run. Regenerating would pay for Claude twice for the same day.
+  if (brief) {
+    outstanding++;
+    await enqueueDelivery(user.id, brief.id);
+    return "queued delivery";
+  }
+
+  outstanding++;
+  await enqueuePipeline(user.id, "schedule");
+  return "queued pipeline";
 }
 
 async function tick(options: Options): Promise<void> {
@@ -74,12 +125,22 @@ async function tick(options: Options): Promise<void> {
   console.log(`${now.toISOString()}  checking ${users.length} executive(s)`);
   for (const user of users) {
     try {
-      console.log(`  ${user.email}: ${await serve(user, now)}`);
+      console.log(`  ${user.email}: ${await schedule(user, now)}`);
     } catch (error) {
-      // One executive's failure must never stop the others' briefs.
+      // One executive's failure must never stop another's brief.
       console.error(`  ${user.email}: FAILED — ${error instanceof Error ? error.message : error}`);
     }
   }
+}
+
+// -------------------------------------------------------------------- main
+
+async function drain(timeoutMs = 15 * 60_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (outstanding > 0 && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  if (outstanding > 0) console.warn(`gave up waiting on ${outstanding} job(s)`);
 }
 
 async function main() {
@@ -89,11 +150,53 @@ async function main() {
     console.log("SMTP_URL is not set — briefs will be logged, not sent, and stay undelivered.\n");
   }
 
-  await tick(options);
-  if (options.once) return;
+  // Only this process supervises: maintenance running in two places means two
+  // schedulers competing over the same tables.
+  const boss = await queue({ supervise: true });
 
-  console.log(`\npolling every ${options.intervalMinutes} minute(s). Ctrl-C to stop.`);
+  const consume =
+    <T>(handler: (data: T) => Promise<void>) =>
+    async (jobs: { data: T }[]) => {
+      for (const job of jobs) {
+        try {
+          await handler(job.data);
+        } finally {
+          // Decrement even on failure: pg-boss owns the retry, and --once
+          // should not block on a job that will be picked up later.
+          outstanding = Math.max(0, outstanding - 1);
+        }
+      }
+    };
+
+  await boss.work<PipelineJob>(
+    QUEUES.pipeline,
+    { batchSize: 1, pollingIntervalSeconds: 2 },
+    consume(handlePipeline),
+  );
+  await boss.work<DeliverJob>(
+    QUEUES.deliver,
+    { batchSize: 5, pollingIntervalSeconds: 2 },
+    consume(handleDeliver),
+  );
+
+  await tick(options);
+
+  if (options.once) {
+    await drain();
+    await stopQueue();
+    await db.$disconnect();
+    return;
+  }
+
+  console.log(`\nworking queues, scheduling every ${options.intervalMinutes} minute(s). Ctrl-C to stop.`);
   setInterval(() => void tick(options), options.intervalMinutes * 60_000);
+
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.on(signal, () => {
+      console.log(`\n${signal} — finishing in-flight jobs`);
+      void stopQueue().then(() => db.$disconnect()).then(() => process.exit(0));
+    });
+  }
 }
 
 main().catch((error) => {

@@ -64,7 +64,8 @@ export async function syncUser(user: User): Promise<IngestResult> {
   for (const connection of connections) {
     if (connection.provider !== "google") continue;
 
-    const raws = [...(await fetchGmail(connection)), ...(await fetchCalendar(connection))];
+    const gmail = await fetchGmail(connection);
+    const raws = [...gmail.signals, ...(await fetchCalendar(connection))];
     const result = await storeSignals(user, raws);
 
     totals.fetched += result.fetched;
@@ -73,7 +74,9 @@ export async function syncUser(user: User): Promise<IngestResult> {
 
     await db.connection.update({
       where: { id: connection.id },
-      data: { lastSyncAt: new Date() },
+      // The cursor advances only after the signals it covers are stored, so a
+      // crash mid-ingest re-reads that window rather than losing it.
+      data: { lastSyncAt: new Date(), cursor: gmail.cursor ?? connection.cursor },
     });
   }
 

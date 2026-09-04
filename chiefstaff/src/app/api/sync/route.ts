@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
-import { runPipeline } from "@/core/pipeline";
-
-export const maxDuration = 300;
+import { enqueuePipeline } from "@/jobs/queue";
 
 /**
- * On-demand sync for the signed-in executive. The scheduled morning run should
- * call this per user from a cron worker rather than fanning out here — one HTTP
- * request should not own an unbounded number of Claude calls.
+ * On-demand sync for the signed-in executive. Returns as soon as the job is
+ * queued — one HTTP request should never own an unbounded number of Claude
+ * calls. The worker picks it up; duplicates collapse on the singleton key.
  */
 export async function POST() {
   const user = await currentUser();
@@ -20,11 +18,14 @@ export async function POST() {
   }
 
   try {
-    return NextResponse.json(await runPipeline(user));
+    const jobId = await enqueuePipeline(user.id, "api");
+    // A null id means an identical job is already pending, which is a success
+    // from the caller's point of view: the work they asked for is coming.
+    return NextResponse.json({ queued: true, jobId }, { status: 202 });
   } catch (error) {
-    console.error("sync failed", error);
+    console.error("failed to queue sync", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "sync failed" },
+      { error: error instanceof Error ? error.message : "could not queue sync" },
       { status: 500 },
     );
   }

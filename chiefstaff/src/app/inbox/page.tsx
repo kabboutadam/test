@@ -37,6 +37,9 @@ export default async function InboxPage() {
 
       <form action={syncNow} style={{ marginTop: 24 }}>
         <button>Sync now</button>
+        <span style={{ marginLeft: 10, fontSize: 13, color: "var(--muted)" }}>
+          queues a run — new items appear here shortly
+        </span>
       </form>
     </main>
   );

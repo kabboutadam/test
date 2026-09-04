@@ -33,9 +33,17 @@ product decision as much as a technical one — see *Permissions* below.
 One normalized row per thing that happened, unique on
 `(userId, source, externalId)` so sync is idempotent and re-running is free.
 
-Cheap filtering happens here, before any tokens are spent: the Gmail query
-excludes promotions and social, and `isBulkSender` drops no-reply addresses.
-Claude should only ever see plausible candidates.
+Cheap filtering happens here, before any tokens are spent: excluded Gmail labels
+(promotions, social, spam, chat — but never SENT, since the executive's own
+outbound is how open loops are detected) and `isBulkSender` for no-reply
+addresses. Claude should only ever see plausible candidates.
+
+Gmail sync is incremental via `historyId`, stored in `Connection.cursor`. The
+first sync backfills a bounded 7-day window and reads the watermark *before*
+listing, so anything arriving mid-backfill is re-seen next time and deduped
+rather than skipped forever. After that the common path is one API call
+returning nothing, against the ~150 a re-list costs. Gmail expires history after
+about a week; a 404 on resume means backfill, not an outage.
 
 ### People (`src/core/people.ts`)
 
@@ -96,6 +104,34 @@ At current pricing, a working day is roughly 150 signals → ~8 triage batches +
 price point the model cost is a rounding error, which is the correct ratio for
 this product. Don't optimize it before the filter is good.
 
+## Background work
+
+Two queues on pg-boss, which runs on the Postgres already here rather than
+adding Redis:
+
+- `chiefstaff.pipeline` — sync, triage, loops, brief. Expensive; retried twice
+  with backoff, because Google and Anthropic both fail transiently.
+- `chiefstaff.deliver` — send the brief. Cheap, idempotent, retried eight
+  times: a transient SMTP failure should never cost someone their brief.
+
+They are separate so a pipeline failure cannot take the delivery of an
+already-generated brief with it.
+
+Both queues use pg-boss's `stately` policy. This is load-bearing and easy to get
+wrong: on the default `standard` policy `singletonKey` is recorded and ignored,
+so a five-minute poll quietly queues twelve identical pipelines an hour. A
+queue's policy is fixed at creation and pg-boss will not update it, so
+`src/jobs/queue.ts` warns loudly if it finds a queue with a stale policy rather
+than dropping it and taking any queued jobs with it.
+
+The web process sends but never supervises — maintenance running in two places
+means two schedulers competing over the same tables.
+
+Idempotency comes from three independent places, which is what makes a poll, a
+cron and a manual sync safe to overlap: duplicate jobs collapse on the singleton
+key, a brief already generated for today is not regenerated, and a brief already
+delivered is not sent again.
+
 ## Permissions
 
 **The source is the permission system.** Every read uses the executive's own
@@ -129,9 +165,5 @@ Three properties, each load-bearing:
 - **No vector search yet.** Retrieval matters for "ask anything" (V2), not for
   triage, which works on a bounded recent window. Adding pgvector before the
   filter is good is optimizing the wrong layer.
-- **No job queue.** `runPipeline` is called synchronously from a route and a
-  script. This is correct for one executive and wrong for a hundred — the
-  morning run needs a real worker before the second customer.
-- **No incremental Gmail sync.** The `Connection.cursor` column exists for
-  `historyId` but is unused; the current sync re-lists a 7-day window and relies
-  on the uniqueness constraint. Fine at this size, wasteful at scale.
+- **No admin surface.** Queue depth, failed jobs and per-executive sync health
+  are visible only in Postgres. Fine for one operator, not for a support rota.
