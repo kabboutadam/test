@@ -33,15 +33,24 @@ public server URL — a TestFlight build on a phone in a café cannot reach your
 laptop — and build:
 
 ```bash
-eas build --platform ios --profile preview
+eas build --platform ios --profile testflight
 ```
 
-First build asks to create signing credentials; say yes to everything. When it
-finishes, `eas submit --platform ios` sends it to TestFlight. Subsequent
-builds are the same two commands.
+First build asks to sign in with your Apple ID and to create signing
+credentials and a push key; say yes to everything. When it finishes:
 
-The `development` profile is for a dev client with fast refresh on a real
-device; `production` is for the App Store.
+```bash
+eas submit --platform ios --latest
+```
+
+That uploads to TestFlight. Subsequent builds are the same two commands.
+
+The server URL is editable inside the app (on the link screen, and under
+Settings), so a server move or tunnel restart never needs a rebuild.
+
+Profiles: `testflight` for TestFlight, `preview` for an ad-hoc install link,
+`development` for a dev client with fast refresh, `production` for the App
+Store.
 
 ## Making the server public for testing
 

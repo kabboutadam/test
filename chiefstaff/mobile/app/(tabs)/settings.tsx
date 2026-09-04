@@ -1,7 +1,7 @@
-import { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { API_URL, api, useFetch } from "@/api";
+import { api, getApiUrl, setApiUrl, useFetch } from "@/api";
 import { useSignOut } from "@/auth";
 import { Button, Card, Lede, Screen, Title } from "@/components/ui";
 import { registerForPush } from "@/push";
@@ -14,6 +14,16 @@ export default function SettingsScreen() {
   const { data, error } = useFetch(load);
   const me = data?.user;
   const [note, setNote] = useState<string | null>(null);
+  const [server, setServer] = useState("");
+
+  useEffect(() => {
+    void getApiUrl().then(setServer);
+  }, []);
+
+  const saveServer = async () => {
+    await setApiUrl(server);
+    setNote("Server saved. Pull to refresh any screen.");
+  };
 
   const sync = async () => {
     try {
@@ -62,9 +72,19 @@ export default function SettingsScreen() {
           </View>
           {note && <Text style={[styles.note, { color: t.muted }]}>{note}</Text>}
 
+          <Text style={[styles.label, { color: t.muted, marginTop: 28 }]}>Server</Text>
+          <TextInput
+            value={server}
+            onChangeText={setServer}
+            onBlur={() => void saveServer()}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            style={[styles.input, { color: t.ink, borderColor: t.line, backgroundColor: t.panel }]}
+          />
+
           <Text style={[styles.foot, { color: t.muted }]}>
-            Server: {API_URL}
-            {"\n"}Read-only Gmail and Calendar, read as you. Drafts are never sent by this app.
+            Read-only Gmail and Calendar, read as you. Drafts are never sent by this app.
           </Text>
         </ScrollView>
       </SafeAreaView>
@@ -78,5 +98,6 @@ const styles = StyleSheet.create({
   value: { fontSize: 15 },
   stack: { gap: 8, marginTop: 4 },
   note: { fontSize: 13, lineHeight: 19, marginTop: 12 },
-  foot: { fontSize: 12, lineHeight: 18, marginTop: 28 },
+  input: { fontSize: 14, borderWidth: 1, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12 },
+  foot: { fontSize: 12, lineHeight: 18, marginTop: 20 },
 });

@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useState } from "react";
 import { getToken, setToken } from "./auth";
 
@@ -7,8 +8,28 @@ import { getToken, setToken } from "./auth";
  * server; if one changes, the other must.
  */
 
-export const API_URL: string =
+/** The build-time default; the executive can override it in the app. */
+export const DEFAULT_API_URL: string =
   (Constants.expoConfig?.extra?.apiUrl as string | undefined) ?? "http://localhost:3000";
+
+const URL_KEY = "chiefstaff.apiUrl";
+let cachedUrl: string | undefined;
+
+/**
+ * Runtime-configurable, so a TestFlight build survives a server move or a
+ * tunnel restart without a rebuild. Stored alongside the token.
+ */
+export async function getApiUrl(): Promise<string> {
+  if (cachedUrl === undefined) cachedUrl = (await SecureStore.getItemAsync(URL_KEY)) ?? DEFAULT_API_URL;
+  return cachedUrl;
+}
+
+export async function setApiUrl(url: string | null): Promise<void> {
+  const cleaned = url?.trim().replace(/\/+$/, "") || null;
+  cachedUrl = cleaned ?? DEFAULT_API_URL;
+  if (cleaned) await SecureStore.setItemAsync(URL_KEY, cleaned);
+  else await SecureStore.deleteItemAsync(URL_KEY);
+}
 
 export class ApiError extends Error {
   constructor(
@@ -20,8 +41,8 @@ export class ApiError extends Error {
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = await getToken();
-  const response = await fetch(`${API_URL}${path}`, {
+  const [token, base] = await Promise.all([getToken(), getApiUrl()]);
+  const response = await fetch(`${base}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",

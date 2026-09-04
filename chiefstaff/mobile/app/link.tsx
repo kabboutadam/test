@@ -1,8 +1,8 @@
 import * as Device from "expo-device";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { api, ApiError } from "@/api";
+import { api, ApiError, getApiUrl, setApiUrl } from "@/api";
 import { setToken } from "@/auth";
 import { Button, Lede, Screen, Title } from "@/components/ui";
 import { useTheme } from "@/theme";
@@ -10,8 +10,13 @@ import { useTheme } from "@/theme";
 export default function LinkScreen() {
   const t = useTheme();
   const [code, setCode] = useState("");
+  const [server, setServer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void getApiUrl().then(setServer);
+  }, []);
 
   const cleaned = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
@@ -19,6 +24,7 @@ export default function LinkScreen() {
     setBusy(true);
     setError(null);
     try {
+      await setApiUrl(server);
       const result = await api.link(cleaned, Device.modelName ?? Platform.OS);
       await setToken(result.token);
     } catch (caught) {
@@ -50,6 +56,18 @@ export default function LinkScreen() {
           />
           {error && <Text style={[styles.error, { color: t.urgent }]}>{error}</Text>}
 
+          <Text style={[styles.label, { color: t.muted }]}>Server</Text>
+          <TextInput
+            value={server}
+            onChangeText={setServer}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            placeholder="https://your-server.example"
+            placeholderTextColor={t.muted}
+            style={[styles.server, { color: t.ink, borderColor: t.line, backgroundColor: t.panel }]}
+          />
+
           <View style={{ marginTop: 16 }}>
             <Button primary disabled={busy || cleaned.length !== 6} onPress={() => void link()}>
               {busy ? "Linking…" : "Link"}
@@ -66,4 +84,6 @@ const styles = StyleSheet.create({
   brand: { fontSize: 14, fontWeight: "700", marginBottom: 28, letterSpacing: -0.2 },
   input: { fontSize: 30, letterSpacing: 6, textAlign: "center", borderWidth: 1, borderRadius: 12, paddingVertical: 16, fontVariant: ["tabular-nums"] },
   error: { marginTop: 10, fontSize: 14 },
+  label: { fontSize: 11, fontWeight: "600", letterSpacing: 0.6, textTransform: "uppercase", marginTop: 22, marginBottom: 6 },
+  server: { fontSize: 14, borderWidth: 1, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12 },
 });

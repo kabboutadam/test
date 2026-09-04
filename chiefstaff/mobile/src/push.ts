@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
@@ -33,7 +34,10 @@ export async function registerForPush(): Promise<boolean> {
     });
   }
 
-  const { data: token } = await Notifications.getExpoPushTokenAsync();
+  // Without an explicit projectId the call fails in EAS builds with
+  // "No projectId found" — the single most common push setup failure.
+  const projectId = (Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined)?.projectId;
+  const { data: token } = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
   await api.registerDevice(token, Platform.OS);
   return true;
 }
