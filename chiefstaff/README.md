@@ -33,6 +33,8 @@ delegate access. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Running it
 
+Node 22 or newer.
+
 ```bash
 cp .env.example .env      # fill in ANTHROPIC_API_KEY at minimum
 docker compose up -d      # Postgres on :5432
@@ -41,6 +43,15 @@ npm run db:push           # create the schema
 npm run seed              # a fictional COO with a realistic week of mail
 npm run pipeline          # ingest -> triage -> loops -> brief, printed to stdout
 npm run dev               # http://localhost:3000
+```
+
+Every script reads `.env` itself, so nothing needs exporting; a variable set in
+the shell takes precedence over the file. Only the eval needs a key at all:
+
+```bash
+cp .env.example .env      # then set ANTHROPIC_API_KEY
+npm install
+npm run eval -- --runs 3
 ```
 
 ## The morning run

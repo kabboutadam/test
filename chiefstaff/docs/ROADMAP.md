@@ -42,6 +42,15 @@ The gap between "runs" and "someone uses it every morning."
 
 ## V3 — enterprise
 
+0. **Google OAuth verification — start early.** `gmail.readonly` is a
+   *restricted* scope. Test users (up to 100) work with no review, so the
+   founding team and design partners are unblocked. Beyond that, Google
+   requires app verification plus an annual third-party CASA security
+   assessment: weeks of calendar time and a real invoice, and it surfaces two
+   weeks before a launch if nobody started it. A `gmail.metadata` fallback tier
+   (not restricted) exists but loses message bodies, which is most of triage's
+   signal — a worse product, not a free option.
+
 10. **Audit log** over every read and every generated artifact.
 11. **SOC 2 Type II.** It will be asked for on the first real deal, and the
     answer "we're working on it" costs six months.

@@ -10,13 +10,13 @@
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "seed": "tsx prisma/seed.ts",
-    "pipeline": "tsx scripts/run-pipeline.ts",
-    "eval": "tsx evals/run.ts",
-    "worker": "tsx scripts/worker.ts"
+    "seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
+    "pipeline": "tsx --env-file-if-exists=.env scripts/run-pipeline.ts",
+    "eval": "tsx --env-file-if-exists=.env evals/run.ts",
+    "worker": "tsx --env-file-if-exists=.env scripts/worker.ts"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx --env-file-if-exists=.env prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
