@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { enqueuePipeline } from "@/jobs/queue";
+import { createLinkCode } from "@/lib/api-auth";
 
 /**
  * Approving records the executive's intent. It deliberately does not send:
@@ -37,4 +38,11 @@ export async function syncNow() {
   revalidatePath("/inbox");
   revalidatePath("/brief");
   revalidatePath("/loops");
+}
+
+/** Shows a code on the web the phone can type. Ten minutes, single use. */
+export async function linkPhone() {
+  const user = await requireUser();
+  await createLinkCode(user.id);
+  revalidatePath("/settings");
 }

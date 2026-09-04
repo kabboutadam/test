@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "ChiefStaff",
+    "slug": "chiefstaff",
+    "version": "0.1.0",
+    "scheme": "chiefstaff",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.chiefstaff.app",
+      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+    },
+    "android": {
+      "package": "com.chiefstaff.app",
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-notifications", { "mode": "production" }]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:3000"
+    },
+    "experiments": { "typedRoutes": true }
+  }
+}

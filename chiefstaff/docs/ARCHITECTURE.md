@@ -132,6 +132,30 @@ cron and a manual sync safe to overlap: duplicate jobs collapse on the singleton
 key, a brief already generated for today is not regenerated, and a brief already
 delivered is not sent again.
 
+## The phone
+
+The phone never sees Google. It links to an already-signed-in web session with
+a six-character code — the same pattern as linking a TV, chosen for the same
+reason: typing on the small screen is the part to minimise. The code is
+single-use, ten minutes, and excludes 0/O/1/I because these get read aloud
+across a room. Redeeming it yields a bearer token shown exactly once; only the
+SHA-256 is stored, and sign-out revokes it server-side.
+
+`/api/v1` is deliberately thin: the server does the parsing (the brief comes
+down as blocks, not markdown), so the phone carries no model-output handling at
+all. Every write the phone can make is a status change on a row the user owns.
+
+Push goes through Expo's service, which needs no account and relays to APNs and
+FCM. It is best-effort by design: a failed push must never block the brief, so
+`sendPush` reports rather than throws, and a token Expo marks
+`DeviceNotRegistered` (the app was uninstalled) is forgotten on the spot.
+"Delivered" means at least one channel — email or push — actually reached them.
+The channels fail independently: an SMTP outage does not stop the push, and a
+push outage does not stop the email. If a configured channel failed and nothing
+reached them, delivery throws so the queue retries with backoff; if no channel
+is configured at all, it reports and waits for the next scheduler pass, since
+retrying that cannot help.
+
 ## Permissions
 
 **The source is the permission system.** Every read uses the executive's own

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { googleConfigured } from "@/lib/env";
+import { linkPhone } from "../inbox/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,15 @@ export default async function SettingsPage() {
   const connections = user
     ? await db.connection.findMany({ where: { userId: user.id } })
     : [];
+  const [liveCode, devices] = user
+    ? await Promise.all([
+        db.linkCode.findFirst({
+          where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+          orderBy: { createdAt: "desc" },
+        }),
+        db.device.count({ where: { userId: user.id } }),
+      ])
+    : [null, 0];
 
   return (
     <main>
@@ -49,6 +59,30 @@ export default async function SettingsPage() {
           Google OAuth is not configured. Set <code>GOOGLE_CLIENT_ID</code> and{" "}
           <code>GOOGLE_CLIENT_SECRET</code> in <code>.env</code> to enable it.
         </p>
+      )}
+
+      <h2>Phone</h2>
+      <p className="why">
+        {devices === 0
+          ? "No phone linked. The brief arrives by push at your brief hour once one is."
+          : `${devices} ${devices === 1 ? "phone" : "phones"} linked.`}
+      </p>
+      {liveCode ? (
+        <article className="card">
+          <div className="meta">
+            <span>expires {liveCode.expiresAt.toLocaleTimeString("en-US", { timeStyle: "short" })}</span>
+          </div>
+          <h3 style={{ fontSize: 30, letterSpacing: "0.18em", fontVariantNumeric: "tabular-nums" }}>
+            {liveCode.code.slice(0, 3)} {liveCode.code.slice(3)}
+          </h3>
+          <p className="why">Open ChiefStaff on your phone and type this code.</p>
+        </article>
+      ) : (
+        user && (
+          <form action={linkPhone}>
+            <button>{devices ? "Link another phone" : "Link your phone"}</button>
+          </form>
+        )
       )}
 
       <h2>What this reads</h2>

@@ -15,8 +15,8 @@ Ordered by what the product needs, not by what's easy.
 
 The gap between "runs" and "someone uses it every morning."
 
-1. **Mobile push.** Email delivery ships; push does not. Email is where a brief
-   goes to be read at 09:40, and the product promises 06:00.
+1. **EAS build + store listing.** The app runs in Expo Go today; push needs a
+   real build. TestFlight for the founding team is a day's work.
 2. **Gmail push notifications** (`users.watch` + Pub/Sub). Incremental sync
    makes polling cheap; push makes it immediate, which matters for escalations.
 3. **Operational visibility.** Queue depth, failed jobs and per-executive sync

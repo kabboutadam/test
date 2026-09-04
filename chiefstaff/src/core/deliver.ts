@@ -1,7 +1,8 @@
 import type { Brief, User } from "@prisma/client";
 import { db } from "@/lib/db";
 import { briefToText, parseBrief, type Span } from "@/lib/brief-blocks";
-import { sendMail, type Envelope } from "@/lib/mail";
+import { mailConfigured, sendMail, type Envelope } from "@/lib/mail";
+import { sendPush } from "@/lib/push";
 import { localDateKey } from "@/lib/time";
 
 /** Model output reaches an HTML email here, so it is escaped, not trusted. */
@@ -82,29 +83,79 @@ ${html}
   };
 }
 
+/** The first "needs you" line, for the notification body. */
+function headline(brief: Brief): string {
+  const blocks = parseBrief(brief.markdown);
+  const first = blocks.find((block) => block.type === "list");
+  const text = first?.type === "list" ? first.items[0]?.map((span) => span.text).join("") : undefined;
+  return text?.slice(0, 140) ?? "Your brief is ready.";
+}
+
 /**
- * Send today's brief, once. Idempotent on `deliveredAt`, so a retried or
- * overlapping morning run cannot put a second copy in front of the executive.
+ * Send today's brief, once, by every channel the executive has: email if
+ * SMTP is configured, push to every linked phone. Delivered means at least
+ * one channel actually reached them. Idempotent on `deliveredAt`, so a
+ * retried or overlapping morning run cannot put a second copy in front of
+ * them.
  */
 export async function deliverBrief(
   user: User,
   brief: Brief,
-): Promise<{ delivered: boolean; reason?: string }> {
+): Promise<{ delivered: boolean; reason?: string; channels: string[] }> {
   if (brief.deliveredAt) {
-    return { delivered: false, reason: "already delivered" };
+    return { delivered: false, reason: "already delivered", channels: [] };
   }
 
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const result = await sendMail(renderBriefEmail(user, brief, appUrl));
+  const channels: string[] = [];
+  const failures: string[] = [];
 
-  // Only a real send marks the brief delivered. Without SMTP configured the
-  // brief stays undelivered so it goes out for real once mail is wired up.
-  if (!result.sent) {
-    return { delivered: false, reason: "no SMTP configured (brief logged, not sent)" };
+  // Channels are independent. An SMTP outage must not stop the push, and a
+  // push outage must not stop the email — the whole point of two channels.
+  try {
+    const mail = await sendMail(renderBriefEmail(user, brief, appUrl));
+    if (mail.sent) channels.push("email");
+  } catch (error) {
+    failures.push(`email: ${error instanceof Error ? error.message : error}`);
+  }
+
+  const devices = await db.device.findMany({ where: { userId: user.id } });
+  if (devices.length > 0) {
+    const push = await sendPush(
+      devices.map((device) => ({
+        to: device.expoPushToken,
+        title: user.name ? `Morning, ${user.name.split(" ")[0]}` : "Your brief",
+        body: headline(brief),
+        data: { screen: "brief", briefId: brief.id },
+      })),
+    );
+    if (push.sent > 0) channels.push(`push×${push.sent}`);
+    if (push.failed > 0) failures.push(`push: ${push.failed} of ${devices.length} failed`);
+    if (push.dead.length > 0) {
+      // An uninstalled app leaves a token that fails forever. Forget it.
+      await db.device.deleteMany({ where: { expoPushToken: { in: push.dead } } });
+    }
+  }
+
+  if (failures.length > 0) console.warn(`  delivery for ${user.email}: ${failures.join("; ")}`);
+
+  // Only a real send marks the brief delivered.
+  if (channels.length === 0) {
+    // A configured channel that failed is transient: throw, so the queue
+    // retries with backoff. Nothing configured at all is not retryable —
+    // report it and let the next scheduler pass try again once it is.
+    if (mailConfigured() || devices.length > 0) {
+      throw new Error(`brief reached nobody — ${failures.join("; ") || "no channel succeeded"}`);
+    }
+    return {
+      delivered: false,
+      reason: "no SMTP configured and no phones linked (brief logged, not sent)",
+      channels,
+    };
   }
 
   await db.brief.update({ where: { id: brief.id }, data: { deliveredAt: new Date() } });
-  return { delivered: true };
+  return { delivered: true, channels };
 }
 
 /** Today's brief in the executive's own timezone, if one exists. */

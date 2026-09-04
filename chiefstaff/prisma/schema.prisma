@@ -31,6 +31,9 @@ model User {
   decisions   Decision[]
   loops       Loop[]
   briefs      Brief[]
+  linkCodes   LinkCode[]
+  apiTokens   ApiToken[]
+  devices     Device[]
 }
 
 /// A connected source account (today: Google Workspace).
@@ -189,4 +192,48 @@ model Brief {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, forDate])
+}
+
+/// A short-lived code shown on the web so a phone can link itself. Same
+/// pattern as linking a TV: the executive never types a password on a phone,
+/// and the phone never touches Google OAuth.
+model LinkCode {
+  id        String    @id @default(cuid())
+  userId    String
+  code      String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// A long-lived bearer token for one device. Only the hash is stored; the
+/// token itself is shown exactly once, at link time.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  label      String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// A phone that wants the brief. Expo push tokens are opaque and per-install.
+model Device {
+  id            String   @id @default(cuid())
+  userId        String
+  expoPushToken String   @unique
+  platform      String
+  createdAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

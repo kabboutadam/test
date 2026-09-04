@@ -79,7 +79,7 @@ async function handleDeliver(data: DeliverJob): Promise<void> {
 
   const delivery = await deliverBrief(user, brief);
   console.log(
-    `  ${user.email}: ${delivery.delivered ? "brief delivered" : `not delivered — ${delivery.reason}`}`,
+    `  ${user.email}: ${delivery.delivered ? `brief delivered via ${delivery.channels.join(", ")}` : `not delivered — ${delivery.reason}`}`,
   );
 }
 
@@ -160,6 +160,11 @@ async function main() {
       for (const job of jobs) {
         try {
           await handler(job.data);
+        } catch (error) {
+          // pg-boss records the error on the job and retries, but nobody
+          // reads the job table at 6am. Say it here, then let it retry.
+          console.error(`  job failed: ${error instanceof Error ? error.stack ?? error.message : error}`);
+          throw error;
         } finally {
           // Decrement even on failure: pg-boss owns the retry, and --once
           // should not block on a job that will be picked up later.

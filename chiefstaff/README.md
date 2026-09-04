@@ -7,6 +7,10 @@ obvious idea and it's the one that dies, because it's *pull* and executives don'
 pull. ChiefStaff is push: it reads what's coming at you, decides the small
 fraction that actually needs you, drafts the response, and asks you to approve.
 
+Two clients — a phone app and a web app — over one server. The phone is the
+product: the brief lands there by push at brief hour. The web is where you
+connect Google and link the phone.
+
 Three surfaces, in the order they matter:
 
 | Surface | What it answers |
@@ -54,6 +58,25 @@ npm install
 npm run eval -- --runs 3
 ```
 
+## The phone app
+
+`mobile/` is an Expo app (same stack as BusMapp): brief, decision inbox,
+waiting-on, settings. It never touches Google — it links to your account with a
+six-character code the web shows under Settings, then holds a bearer token in
+the keychain.
+
+```bash
+cd mobile
+npm install
+npx expo start          # scan the QR with Expo Go
+```
+
+On a real phone, `localhost` is the phone. Set `expo.extra.apiUrl` in
+`mobile/app.json` to your Mac's LAN address (`http://192.168.x.x:3000`) while
+the server runs with `npm run dev`. Push works only on a physical device and
+only once the app is built with EAS; in Expo Go it registers quietly and does
+nothing.
+
 ## The morning run
 
 ```bash
@@ -62,7 +85,8 @@ npm run worker -- --once      # one scheduler pass, drain, exit (cron)
 ```
 
 For each executive, once their local clock passes `briefHour`: queue a pipeline
-run, then a delivery. Work goes through pg-boss on the Postgres already here —
+run, then a delivery — email if SMTP is configured, push to every linked phone,
+and "delivered" means at least one of those actually reached them. Work goes through pg-boss on the Postgres already here —
 no Redis — because the morning fans out to one expensive job per executive, and
 a request handler owning N Claude calls stops working at the second customer.
 
