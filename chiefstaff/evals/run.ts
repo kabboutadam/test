@@ -58,6 +58,8 @@ interface RunScore {
   urgencyError: number;
   urgencyScored: number;
   missing: number;
+  /** Batches whose response failed schema validation. Any is a gate failure. */
+  batchFailures: number;
   usage: Usage;
   judged: Judged[];
 }
@@ -78,23 +80,65 @@ function shuffled<T>(items: T[], seed = 20260310): T[] {
   return out;
 }
 
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+/**
+ * Split the corpus into batches, keeping linked cases (same `group`) in one
+ * batch and in their written order. Some labels are only right because the
+ * model can see a later signal in the same batch — an ask that was retracted
+ * two hours on — and splitting the pair turns a batching test into noise.
+ */
+function batches(cases: EvalCase[], size: number): EvalCase[][] {
+  const groups: EvalCase[][] = [];
+  const byKey = new Map<string, EvalCase[]>();
+  for (const testCase of cases) {
+    if (!testCase.group) {
+      groups.push([testCase]);
+      continue;
+    }
+    let group = byKey.get(testCase.group);
+    if (!group) {
+      group = [];
+      byKey.set(testCase.group, group);
+      groups.push(group);
+    }
+    group.push(testCase);
+  }
+
+  const out: EvalCase[][] = [];
+  let current: EvalCase[] = [];
+  for (const group of shuffled(groups)) {
+    if (current.length > 0 && current.length + group.length > size) {
+      out.push(current);
+      current = [];
+    }
+    current.push(...group);
+  }
+  if (current.length) out.push(current);
   return out;
 }
 
 async function runOnce(options: Options): Promise<RunScore> {
   const judged: Judged[] = [];
   const usages: Usage[] = [];
+  let batchFailures = 0;
 
-  for (const batch of chunk(shuffled(CASES), options.batch)) {
-    const { items, usage } = await classify(
-      EVAL_EXEC,
-      batch.map((testCase) => testCase.signal),
-      { now: EVAL_NOW, effort: options.effort },
-    );
-    usages.push(usage);
+  for (const batch of batches(CASES, options.batch)) {
+    let items: TriagedItem[];
+    try {
+      const result = await classify(
+        EVAL_EXEC,
+        batch.map((testCase) => testCase.signal),
+        { now: EVAL_NOW, effort: options.effort },
+      );
+      items = result.items;
+      usages.push(result.usage);
+    } catch (error) {
+      // A batch that fails to parse is a real finding, not a reason to lose
+      // the rest of the run: every case in it counts as unreturned.
+      batchFailures++;
+      console.error(`  batch failed (${batch.length} cases): ${error instanceof Error ? error.message.split("\n")[0] : error}`);
+      for (const testCase of batch) judged.push({ testCase, verdict: null });
+      continue;
+    }
 
     // The model returns signal_index; anything it skipped counts as a miss
     // rather than silently vanishing from the denominator.
@@ -119,6 +163,7 @@ async function runOnce(options: Options): Promise<RunScore> {
     urgencyError: 0,
     urgencyScored: 0,
     missing: 0,
+    batchFailures,
     usage: sumUsage(usages),
     judged,
   };
@@ -227,9 +272,9 @@ async function main() {
   if (options.dryRun) {
     // Everything up to the API boundary: label balance, batching, and the
     // exact prompt. Useful for reviewing a prompt change before paying for it.
-    const batches = chunk(shuffled(CASES), options.batch);
+    const split = batches(CASES, options.batch);
     console.log(
-      `${batches.length} batch(es): ${batches
+      `${split.length} batch(es): ${split
         .map((batch) => `${batch.length} cases / ${batch.filter((testCase) => testCase.expect.surface).length} positive`)
         .join(", ")}`,
     );
@@ -241,13 +286,16 @@ async function main() {
       categories.set(key, (categories.get(key) ?? 0) + 1);
     }
     console.log(`positives by category: ${[...categories].map(([key, n]) => `${key} ${n}`).join(", ")}`);
+    split.forEach((batch, index) => {
+      console.log(`  batch ${index + 1}: ${batch.map((testCase) => testCase.id + (testCase.group ? `[${testCase.group}]` : "")).join(", ")}`);
+    });
 
     const duplicates = CASES.map((testCase) => testCase.id).filter(
       (id, index, all) => all.indexOf(id) !== index,
     );
     if (duplicates.length) console.log(`DUPLICATE IDS: ${duplicates.join(", ")}`);
 
-    const prompt = buildPrompt(EVAL_EXEC, batches[0].map((testCase) => testCase.signal), EVAL_NOW);
+    const prompt = buildPrompt(EVAL_EXEC, split[0].map((testCase) => testCase.signal), EVAL_NOW);
     console.log(`\nsystem prompt: ${TRIAGE_SYSTEM.length} chars`);
     console.log(`batch 1 prompt: ${prompt.length} chars\n`);
     console.log(prompt.slice(0, 1200) + "\n[...]");
@@ -286,6 +334,10 @@ async function main() {
   if (scores.some((score) => score.missing)) {
     console.log(`unreturned     ${mean((s) => s.missing).toFixed(1)} signals (model skipped these)`);
   }
+  const failedBatches = scores.reduce((total, score) => total + score.batchFailures, 0);
+  if (failedBatches) {
+    console.log(`batch failures ${failedBatches} across ${scores.length} run(s) — responses that failed the schema`);
+  }
 
   const totalUsage = sumUsage(scores.map((score) => score.usage));
   console.log(
@@ -307,8 +359,8 @@ async function main() {
 
   const meanPrecision = mean((score) => score.precision);
   const meanRecall = mean((score) => score.recall);
-  if (meanPrecision < MIN_PRECISION || meanRecall < MIN_RECALL) {
-    console.log(`\nFAILED — below gate.`);
+  if (meanPrecision < MIN_PRECISION || meanRecall < MIN_RECALL || failedBatches > 0) {
+    console.log(failedBatches ? `\nFAILED — a batch failed schema validation; in production that is a missed morning.` : `\nFAILED — below gate.`);
     process.exit(1);
   }
   console.log(`\nPASSED`);

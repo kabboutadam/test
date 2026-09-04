@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { z } from "zod";
+import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import { z } from "zod";
 import { env } from "./env";
 
 export const MODEL = "claude-opus-5";
@@ -63,6 +63,54 @@ export function sumUsage(entries: Usage[]): Usage {
   );
 }
 
+/**
+ * JSON Schema keywords the structured-outputs API rejects. Everything else
+ * zod emits is passed through — notably `enum` and `const`, which the API
+ * supports and which the SDK's own zodOutputFormat (0.123) demotes into a
+ * description string, leaving the server free to return any value at all.
+ * That is how a triage run died on an off-enum category.
+ */
+const UNSUPPORTED_KEYWORDS = new Set([
+  "$schema",
+  "minimum",
+  "maximum",
+  "exclusiveMinimum",
+  "exclusiveMaximum",
+  "multipleOf",
+  "minLength",
+  "maxLength",
+  "pattern",
+  "maxItems",
+  "uniqueItems",
+]);
+
+function stripUnsupported(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(stripUnsupported);
+  if (typeof node !== "object" || node === null) return node;
+
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    if (UNSUPPORTED_KEYWORDS.has(key)) continue;
+    // The API accepts minItems of 0 or 1 only.
+    if (key === "minItems" && value !== 0 && value !== 1) continue;
+    out[key] = stripUnsupported(value);
+  }
+  return out;
+}
+
+/** A zod schema as the API wants it: enums intact, unsupported constraints gone. */
+export function apiSchema(schema: z.ZodType): { type: "object"; [key: string]: unknown } {
+  const json = stripUnsupported(z.toJSONSchema(schema, { reused: "ref" })) as Record<string, unknown>;
+  if (json.type !== "object") throw new Error("Structured output schema must be an object at the root");
+  return json as { type: "object"; [key: string]: unknown };
+}
+
+class SchemaViolation extends Error {
+  constructor(public readonly issues: string) {
+    super(`Model output failed schema validation: ${issues}`);
+  }
+}
+
 export interface ExtractOptions<T extends z.ZodType> {
   schema: T;
   system: string;
@@ -89,26 +137,44 @@ export async function extractWithUsage<T extends z.ZodType>(
   ];
   if (opts.context) system.push({ type: "text", text: opts.context });
 
-  const response = await anthropic().messages.parse({
-    model: MODEL,
-    max_tokens: opts.maxTokens ?? 16000,
-    thinking: { type: "adaptive" },
-    output_config: {
-      effort: opts.effort ?? "medium",
-      format: zodOutputFormat(opts.schema),
-    },
-    system,
-    messages: [{ role: "user", content: opts.prompt }],
-  });
+  const format = jsonSchemaOutputFormat(apiSchema(opts.schema), { transform: false });
+  const usages: Usage[] = [];
 
-  if (response.stop_reason === "refusal") {
-    throw new Error(`Claude declined: ${response.stop_details?.explanation ?? "no reason given"}`);
-  }
-  if (!response.parsed_output) {
-    throw new Error("Claude returned no parseable output");
+  // One retry, for schema violations only. The server now enforces the
+  // schema, so this should be rare — but a triage that dies on one bad field
+  // is a missed morning, and a second attempt is cheap insurance.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await anthropic().messages.parse({
+      model: MODEL,
+      max_tokens: opts.maxTokens ?? 16000,
+      thinking: { type: "adaptive" },
+      output_config: { effort: opts.effort ?? "medium", format },
+      system,
+      messages: [{ role: "user", content: opts.prompt }],
+    });
+    usages.push(accountFor(response.usage));
+
+    if (response.stop_reason === "refusal") {
+      throw new Error(`Claude declined: ${response.stop_details?.explanation ?? "no reason given"}`);
+    }
+    if (response.parsed_output == null) {
+      throw new Error("Claude returned no parseable output");
+    }
+
+    // The SDK only JSON.parsed it; zod is what checks it against the schema.
+    const checked = opts.schema.safeParse(response.parsed_output);
+    if (checked.success) {
+      return { value: checked.data as z.infer<T>, usage: sumUsage(usages) };
+    }
+
+    const issues = checked.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ");
+    if (attempt === 1) throw new SchemaViolation(issues);
+    console.warn(`structured output failed validation, retrying once: ${issues}`);
   }
 
-  return { value: response.parsed_output as z.infer<T>, usage: accountFor(response.usage) };
+  throw new Error("unreachable");
 }
 
 export async function extract<T extends z.ZodType>(opts: ExtractOptions<T>): Promise<z.infer<T>> {

@@ -14,8 +14,13 @@ const TriagedSignal = z.object({
   needs_executive: z.boolean(),
   title: z.string(),
   why: z.string(),
-  category: z.enum(CATEGORIES),
-  urgency: z.number().int().min(0).max(3),
+  /** "none" is for needs_executive: false. Forcing a decision category onto a
+   *  newsletter is how the model ended up inventing one. */
+  category: z.enum([...CATEGORIES, "none"]),
+  // Literals rather than min/max: the API enforces enum/const server-side
+  // but rejects numeric range constraints, so this is the shape that is
+  // actually validated before we see it.
+  urgency: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
   /** A ready-to-send reply, in the executive's voice. Empty when none applies. */
   draft: z.string(),
 });
@@ -69,9 +74,15 @@ Read for the ask, not for the tone. Two failure modes matter equally:
   are already handling are all noise, however loud.
 
 When a direct report is telling the executive what they have decided and are
-asking only to be corrected if wrong, that is FYI. When they cannot proceed
-without an answer, that is a decision. The test is whether work stops without
-this person.
+asking only to be corrected if wrong, that is FYI — if the matter is routine
+and inside their own authority. A "unless you object by Friday" on a material
+commitment (a contract, a large sum, a personnel change) is not FYI: it is an
+approval with a default, and the executive needs to see it before the default
+fires. When they cannot proceed without an answer, that is a decision. The test
+is whether work stops, or something irreversible happens, without this person.
+
+Read the batch as a whole. If a later signal withdraws an earlier ask — "ignore
+my last, sorted" — the earlier one does not need the executive either.
 
 Categories:
 - approval: someone needs a yes/no, a sign-off, or a budget release
@@ -79,6 +90,7 @@ Categories:
 - escalation: a problem that has been raised to them because it is stuck
 - scheduling: a meeting request needing their judgment (not a routine invite)
 - review: a document or plan explicitly sent for their input
+- none: use this, and only this, when needs_executive is false
 
 Urgency: 3 = today, blocking others. 2 = today. 1 = this week. 0 = whenever.
 Reserve 3 for things where a day's delay has real cost.
@@ -204,7 +216,9 @@ export async function triage(user: User): Promise<{ reviewed: number; created: n
         personId: signal.fromId,
         title: item.title,
         why: item.why,
-        category: item.category,
+        // "none" on a surfaced item is a model inconsistency; "review" is the
+        // least wrong bucket and beats dropping something that needs them.
+        category: item.category === "none" ? "review" : item.category,
         urgency: item.urgency,
         draft: item.draft || null,
         draftKind: signal.kind === "email" ? "email_reply" : "note",

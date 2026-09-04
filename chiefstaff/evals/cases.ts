@@ -29,6 +29,8 @@ export interface EvalCase {
   id: string;
   /** One sentence defending the label. Read this when a run disagrees. */
   note: string;
+  /** Cases sharing a group are batched together, in this order. */
+  group?: string;
   signal: TriageCandidate;
   expect: {
     surface: boolean;
@@ -556,6 +558,188 @@ Sarah`,
       ["Status", "status@wms-vendor.example"],
       "[Resolved] Elevated API latency",
       "This incident has been resolved. Between 04:10 and 04:52 CET some customers experienced elevated API latency. A post-incident report will follow.",
+    ),
+  },
+  // ------------------------------------------------------ v2: harder cases
+  {
+    id: "ask-then-retracted",
+    group: "retract",
+    note: "A real ask — but the next signal in the batch withdraws it, and triage is meant to read the batch.",
+    expect: { surface: false },
+    signal: email(
+      ["Priya Raman", "priya@northwind.example"],
+      "Need a call on the Rotterdam carrier swap",
+      `Dana — the secondary carrier wants an answer today on whether we move the
+Rotterdam overflow to them from April. It is about €60k a quarter. Can you
+give me a yes or no by 5?
+
+Priya`,
+      { hoursAgo: 4 },
+    ),
+  },
+  {
+    id: "retraction",
+    group: "retract",
+    note: "The withdrawal itself asks nothing.",
+    expect: { surface: false },
+    signal: email(
+      ["Priya Raman", "priya@northwind.example"],
+      "Re: Need a call on the Rotterdam carrier swap",
+      `Ignore my last — Sarah had already agreed terms with them on Monday, so
+nothing needed from you. Sorry for the noise.
+
+Priya`,
+      { hoursAgo: 2 },
+    ),
+  },
+  {
+    id: "negative-option-material",
+    note: "Phrased as FYI, but a €40k contract change with a default and a deadline is an approval she must see before it fires.",
+    expect: { surface: true, category: "approval", urgency: 1 },
+    signal: email(
+      ["Tomas Bergh", "tomas@northwind.example"],
+      "Carrier contract — going ahead Friday unless you object",
+      `Dana,
+
+Heads up: I am going to sign the amended carrier contract on Friday — it moves
+us to a two-year term at a 6% higher rate in exchange for guaranteed capacity
+over peak. Roughly €40k a year.
+
+I think it is clearly right. If you disagree, shout before Friday; otherwise I
+will take silence as a yes.
+
+Tomas`,
+      { hoursAgo: 18 },
+    ),
+  },
+  {
+    id: "report-decided-routine",
+    note: "Same phrasing as the case above, but routine and inside the sender's authority — the contrast the prompt has to hold.",
+    expect: { surface: false },
+    signal: email(
+      ["Ines Marchetti", "ines@northwind.example"],
+      "Antwerp night shift start moving to 22:00",
+      `Dana — FYI, moving the Antwerp night shift start from 21:00 to 22:00 from
+next week; the terminal changed its gate hours. Cost-neutral, crews are fine
+with it. Shout if you see a problem, otherwise no action.
+
+Ines`,
+      { hoursAgo: 22 },
+    ),
+  },
+  {
+    id: "hr-complaint",
+    note: "A formal complaint against a direct report is never delegable and cannot wait.",
+    expect: { surface: true, category: "escalation", urgency: 3 },
+    signal: email(
+      ["Ola Bakke", "ola@northwind.example"],
+      "Confidential — formal complaint received",
+      `Dana,
+
+We have received a formal written complaint this morning from a member of the
+Antwerp yard team regarding conduct by their site manager, who reports to Ines.
+It names a specific incident and there is a witness.
+
+Under the policy I have to open an investigation within 48 hours and I need to
+agree with you who leads it, since it cannot be Ines. Can we speak today?
+
+Ola
+People Director`,
+      { hoursAgo: 3 },
+    ),
+  },
+  {
+    id: "subpoena",
+    note: "Legal cannot act without an officer naming a records custodian; the clock is statutory.",
+    expect: { surface: true, category: "escalation", urgency: 2 },
+    signal: email(
+      ["Ana Ferreira", "legal@northwind.example"],
+      "Subpoena received — need a custodian named by Wednesday",
+      `Dana,
+
+We were served this morning with a subpoena for records relating to the
+Meridian account over the last 18 months. The response deadline is in 14 days.
+
+I need an officer to designate a records custodian and approve the litigation
+hold going out to about forty staff. Both need your name on them, and the hold
+has to go out by Wednesday to be defensible.
+
+Ana`,
+      { hoursAgo: 6 },
+    ),
+  },
+  {
+    id: "journalist",
+    note: "Comms can draft, but whether the COO comments on a safety incident is not Comms's call.",
+    expect: { surface: true, category: "reply", urgency: 2 },
+    signal: email(
+      ["Sam Ortiz", "s.ortiz@tradepress.example"],
+      "Request for comment — Antwerp incidents — deadline 17:00",
+      `Ms Reyes,
+
+I am writing a piece on subcontractor safety at Belgian terminals and
+understand there have been two near-misses at Northwind's Antwerp site this
+month. I would like to give you the opportunity to comment before we publish.
+Deadline is 17:00 today.
+
+Sam Ortiz
+Trade Press Europe`,
+      { hoursAgo: 5 },
+    ),
+  },
+  {
+    id: "partner-announcement",
+    note: "An external CEO needs her yes before a public announcement; nobody below her can give it.",
+    expect: { surface: true, category: "approval", urgency: 2 },
+    signal: email(
+      ["Karim Haddad", "karim@portlink.example"],
+      "OK to announce Tuesday?",
+      `Dana — our comms team wants to put the Northwind–Portlink partnership
+release out Tuesday morning. Draft attached, your logo and a quote from you
+we have paraphrased from the call. Do we have your OK?
+
+Karim`,
+      { hoursAgo: 28 },
+    ),
+  },
+  {
+    id: "addressed-to-other-in-to",
+    note: "She is in the To line, but the ask is addressed to Sarah by name.",
+    expect: { surface: false },
+    signal: email(
+      ["Ravi Patel", "ravi@northwind.example"],
+      "Q2 depot numbers",
+      `Sarah — can you pull the Q2 depot utilisation numbers for the finance
+pack by Thursday? Same format as Q1.
+
+Thanks,
+Ravi`,
+      { cc: ["sarah@northwind.example"] },
+    ),
+  },
+  {
+    id: "investor-catchup-invite",
+    note: "A routine catch-up with nothing to decide or prepare; accepting it is not an executive decision.",
+    expect: { surface: false },
+    signal: {
+      kind: "meeting",
+      occurredAt: hoursAhead(6 * 24),
+      fromName: "Helena Ostrom",
+      fromEmail: "helena@ostromcapital.example",
+      participants: ["helena@ostromcapital.example", EXEC],
+      subject: "Dana / Helena catch up",
+      body: "Quarterly catch up. Coffee, no agenda.",
+    },
+  },
+  {
+    id: "reply-all-thanks",
+    note: "Reply-all gratitude.",
+    expect: { surface: false },
+    signal: email(
+      ["Jules Adeyemi", "jules@northwind.example"],
+      "Re: Re: Offsite logistics",
+      "Thanks all — great work getting this sorted so quickly.",
+      { cc: ["ops-team@northwind.example"] },
     ),
   },
 ];

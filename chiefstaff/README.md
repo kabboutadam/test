@@ -79,7 +79,7 @@ notification.
 ## Measuring triage
 
 Triage precision *is* the product, so it has an eval rather than an opinion.
-`evals/cases.ts` is a hand-labelled corpus of 32 signals — deliberately hard
+`evals/cases.ts` is a hand-labelled corpus of 43 signals — deliberately hard
 ones: asks buried under 200 words of status, a board member's polite "no rush"
 question, a vendor's ACTION REQUIRED that means nothing, a report narrating a
 problem they already own.
