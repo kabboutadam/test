@@ -1,6 +1,7 @@
 import type { Brief, User } from "@prisma/client";
 import { db } from "@/lib/db";
 import { MODEL, write } from "@/lib/claude";
+import { localDayStart } from "@/lib/time";
 
 const SYSTEM = `You write the morning brief for a senior executive.
 
@@ -34,12 +35,6 @@ Do not add a greeting, a sign-off, or a summary line at the end.`;
 
 function daysOpen(since: Date): number {
   return Math.max(0, Math.floor((Date.now() - since.getTime()) / 86_400_000));
-}
-
-function startOfToday(): Date {
-  const date = new Date();
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
 }
 
 /** Generate (or regenerate) today's brief from current decisions, loops and calendar. */
@@ -112,7 +107,9 @@ export async function generateBrief(user: User): Promise<Brief> {
 
   const markdown = await write({ system: SYSTEM, prompt: material, maxTokens: 4000 });
 
-  const forDate = startOfToday();
+  // The executive's local calendar day, not the server's. Filing an Auckland
+  // brief under the UTC date puts Tuesday's brief on Monday.
+  const forDate = localDayStart(new Date(), user.timezone);
   return db.brief.upsert({
     where: { userId_forDate: { userId: user.id, forDate } },
     create: { userId: user.id, forDate, markdown, model: MODEL },

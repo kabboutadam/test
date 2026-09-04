@@ -1,57 +1,49 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment } from "react";
+import { parseBrief, type Span } from "./brief-blocks";
 
 /**
- * Renders the narrow slice of markdown the brief prompt is allowed to emit:
- * h2, bullets, paragraphs, bold. Deliberately not a full parser — model output
- * goes through React nodes rather than dangerouslySetInnerHTML, so a prompt
- * injection in someone's email cannot become script in the executive's browser.
+ * Renders a brief for the web. Model output goes through React nodes rather
+ * than dangerouslySetInnerHTML, so a prompt injection sitting in someone's
+ * email cannot become script in the executive's browser.
  */
-function inline(text: string, keyPrefix: string): ReactNode[] {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
-    part.startsWith("**") && part.endsWith("**") ? (
-      <strong key={`${keyPrefix}-${index}`}>{part.slice(2, -2)}</strong>
-    ) : (
-      <Fragment key={`${keyPrefix}-${index}`}>{part}</Fragment>
-    ),
+function Spans({ spans }: { spans: Span[] }) {
+  return (
+    <>
+      {spans.map((span, index) =>
+        span.bold ? <strong key={index}>{span.text}</strong> : <Fragment key={index}>{span.text}</Fragment>,
+      )}
+    </>
   );
 }
 
 export function Markdown({ source }: { source: string }) {
-  const blocks: ReactNode[] = [];
-  let bullets: string[] = [];
-
-  const flushBullets = () => {
-    if (bullets.length === 0) return;
-    blocks.push(
-      <ul key={`ul-${blocks.length}`}>
-        {bullets.map((item, index) => (
-          <li key={index}>{inline(item, `li-${blocks.length}-${index}`)}</li>
-        ))}
-      </ul>,
-    );
-    bullets = [];
-  };
-
-  for (const line of source.split("\n")) {
-    const trimmed = line.trim();
-
-    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-      bullets.push(trimmed.slice(2));
-      continue;
-    }
-    flushBullets();
-
-    if (!trimmed) continue;
-
-    if (trimmed.startsWith("## ")) {
-      blocks.push(<h2 key={`h-${blocks.length}`}>{inline(trimmed.slice(3), `h-${blocks.length}`)}</h2>);
-    } else if (trimmed.startsWith("# ")) {
-      blocks.push(<h2 key={`h-${blocks.length}`}>{inline(trimmed.slice(2), `h-${blocks.length}`)}</h2>);
-    } else {
-      blocks.push(<p key={`p-${blocks.length}`}>{inline(trimmed, `p-${blocks.length}`)}</p>);
-    }
-  }
-  flushBullets();
-
-  return <div className="brief-body">{blocks}</div>;
+  return (
+    <div className="brief-body">
+      {parseBrief(source).map((block, index) => {
+        if (block.type === "heading") {
+          return (
+            <h2 key={index}>
+              <Spans spans={block.spans} />
+            </h2>
+          );
+        }
+        if (block.type === "list") {
+          return (
+            <ul key={index}>
+              {block.items.map((item, itemIndex) => (
+                <li key={itemIndex}>
+                  <Spans spans={item} />
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={index}>
+            <Spans spans={block.spans} />
+          </p>
+        );
+      })}
+    </div>
+  );
 }

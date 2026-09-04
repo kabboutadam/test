@@ -15,9 +15,8 @@ Ordered by what the product needs, not by what's easy.
 
 The gap between "runs" and "someone uses it every morning."
 
-1. **Scheduled delivery.** A worker that runs the pipeline before `briefHour` in
-   the user's timezone and pushes the brief. Mobile push + email; the web app is
-   where you go *after* the notification, never the way you find out.
+1. **Mobile push.** Email delivery ships; push does not. Email is where a brief
+   goes to be read at 09:40, and the product promises 06:00.
 2. **Incremental Gmail sync** using `historyId` (the `Connection.cursor` column
    is already there).
 3. **Real job queue.** `runPipeline` in a route handler doesn't survive a second

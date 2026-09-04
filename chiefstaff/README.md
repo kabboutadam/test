@@ -24,11 +24,12 @@ Claude-powered triage, open-loop tracking and brief generation all run. Ships
 with a seeded fictional COO so you can judge the output quality before
 connecting a real Google account.
 
-Triage is measured against a labelled eval corpus, and dismissals feed back into
-the next classification.
+Triage is measured against a labelled eval corpus, dismissals feed back into the
+next classification, and a worker delivers the brief by email each morning in
+the executive's own timezone.
 
-Not yet built: Slack, meeting prep, ask-anything retrieval, delegate access,
-scheduled morning delivery. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Not yet built: mobile push, Slack, meeting prep, ask-anything retrieval,
+delegate access. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Running it
 
@@ -41,6 +42,23 @@ npm run seed              # a fictional COO with a realistic week of mail
 npm run pipeline          # ingest -> triage -> loops -> brief, printed to stdout
 npm run dev               # http://localhost:3000
 ```
+
+## The morning run
+
+```bash
+npm run worker                # poll every 5 minutes
+npm run worker -- --once      # a single pass, for cron
+```
+
+For each executive, once their local clock passes `briefHour`: run the pipeline,
+generate the brief, email it. Idempotent at two points — a brief already
+generated for today is not regenerated, and a brief already delivered is not
+sent again — so a poll, a cron and a manual run can overlap safely.
+
+Timezone comes from the executive, not the server. With no `SMTP_URL` set the
+brief is printed to the console and left marked undelivered, so a misconfigured
+deployment is loud rather than silently swallowing the product's only
+notification.
 
 ## Measuring triage
 
@@ -118,4 +136,7 @@ src/app/                 Next.js app router surfaces
 scripts/run-pipeline.ts  what the morning cron calls
 evals/cases.ts           the labelled triage corpus — the real spec
 evals/run.ts             scores the classifier, prints every miss
+scripts/worker.ts        the morning run: generate, then deliver
+src/core/deliver.ts      brief -> email, idempotent on deliveredAt
+src/lib/time.ts          everything timezone-shaped, via Intl
 ```
