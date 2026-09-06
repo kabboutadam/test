@@ -40,6 +40,7 @@
     },
     "owner": "akabbout",
     "updates": {
+      "enabled": false,
       "url": "https://u.expo.dev/9a146b88-5535-46f3-88b6-2b921f777f5f"
     },
     "runtimeVersion": {

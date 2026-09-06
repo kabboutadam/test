@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, getApiUrl, setApiUrl, useFetch } from "@/api";
 import { useSignOut } from "@/auth";
+import { CrashNotice } from "@/components/CrashNotice";
 import { Button, Card, Lede, Screen, Title } from "@/components/ui";
 import { registerForPush } from "@/push";
 import { useTheme } from "@/theme";
@@ -49,6 +50,7 @@ export default function SettingsScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <Title>Settings</Title>
           <Lede>{error ?? (me ? `Signed in as ${me.email}` : "Loading…")}</Lede>
+          <CrashNotice />
 
           {me && (
             <Card>

@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } fro
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, ApiError, getApiUrl, setApiUrl } from "@/api";
 import { setToken } from "@/auth";
+import { CrashNotice } from "@/components/CrashNotice";
 import { Button, Lede, Screen, Title } from "@/components/ui";
 import { useTheme } from "@/theme";
 
@@ -39,6 +40,7 @@ export default function LinkScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
           <Text style={[styles.brand, { color: t.ink }]}>ChiefStaff</Text>
+          <CrashNotice />
           <Title>Link this phone</Title>
           <Lede>On the web, open Settings and choose “Link your phone”. Type the code it shows.</Lede>
 
