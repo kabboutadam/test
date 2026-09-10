@@ -15,15 +15,32 @@ set `expo.extra.apiUrl` in `app.json` to your computer's Wi-Fi address, for
 example `http://192.168.1.20:3000`, with the server running (`npm run dev` in
 the parent folder). Then on the web: Settings → Link your phone.
 
-## Why reanimated and worklets are pinned
+## Why some native packages are pinned
 
-Nothing in the dependency tree pins `react-native-reanimated`, so a fresh
-install takes the newest 4.x, which requires a newer `react-native-worklets`
-than Expo's core in this SDK was built against. The native build then fails
-with `no member named 'executeSync' in 'worklets::WorkletRuntime'`. The pins
-in `package.json` (and the matching `overrides`) are the versions from Expo
-SDK 56's own `bundledNativeModules.json`. When upgrading the SDK, update them
-from that file, or run `npx expo install --fix`.
+Expo ships its native modules as prebuilt frameworks, and every one of them
+has to come from the same SDK release. A transitive dependency with a loose
+version range can quietly pull a module from the *next* SDK, and the result is
+not a build error but a crash before the first frame:
+
+- `expo-font` 57.x via `@expo/vector-icons` → the app dies at launch with
+  `dyld: Symbol not found: ExpoModulesCore.AppContext.from(runtime:)`
+  (referenced from ExpoFont.framework). This is a TestFlight-only crash;
+  simulator debug builds do not use the prebuilt frameworks and run fine.
+- `react-native-reanimated` 4.6 via `expo-router` → needs a newer
+  `react-native-worklets` than Expo's core; native build fails with
+  `no member named 'executeSync'`.
+
+The pins in `package.json` (and the matching `overrides`, which win over any
+transitive range) are the versions from Expo SDK 56's own
+`bundledNativeModules.json`. After any `npm install`, this one-liner should
+print nothing:
+
+```bash
+node -e 'const b=require("./node_modules/expo/bundledNativeModules.json"),l=require("./package-lock.json").packages;for(const[n,r]of Object.entries(b)){const e=l["node_modules/"+n];if(!e)continue;const w=r.replace(/^[~^]/,""),h=e.version;if(!(r.startsWith("~")?h.split(".").slice(0,2).join(".")===w.split(".").slice(0,2).join("."):h.split(".")[0]===w.split(".")[0]))console.log("MISMATCH",n,h,"wants",r)}'
+```
+
+When upgrading the SDK, update the pins from that file, or run
+`npx expo install --fix`.
 
 ## TestFlight (needs an Apple Developer account, $99/year)
 
