@@ -21,6 +21,13 @@ fi
 
 [ -f .env ] || { cp .env.example .env; echo "Created .env from .env.example (edit it to add keys later)."; }
 
+# A pull can bring new packages; install whenever the lockfile is newer than
+# the last install (or nothing is installed yet).
+if [ ! -d node_modules ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
+  echo "▸ packages"
+  npm install --no-audit --no-fund --loglevel=error
+fi
+
 echo "▸ database"
 "$DOCKER" compose up -d
 for i in $(seq 1 30); do "$DOCKER" compose exec -T db pg_isready -U chief >/dev/null 2>&1 && break; sleep 1; done
