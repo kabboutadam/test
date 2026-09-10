@@ -1,4 +1,5 @@
 import * as Device from "expo-device";
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,14 +11,24 @@ import { useTheme } from "@/theme";
 
 export default function LinkScreen() {
   const t = useTheme();
-  const [code, setCode] = useState("");
-  const [server, setServer] = useState("");
+  // From a scanned QR: chiefstaff://link?server=…&code=…
+  const params = useLocalSearchParams<{ server?: string; code?: string }>();
+  const [code, setCode] = useState(params.code ?? "");
+  const [server, setServer] = useState(params.server ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void getApiUrl().then(setServer);
-  }, []);
+    if (params.server) setServer(params.server);
+    else void getApiUrl().then(setServer);
+    if (params.code) setCode(params.code);
+  }, [params.server, params.code]);
+
+  // A scan carries everything needed; don't make them tap Link as well.
+  useEffect(() => {
+    if (params.server && params.code && params.code.replace(/[^A-Za-z0-9]/g, "").length === 6) void link();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.server, params.code]);
 
   const cleaned = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
@@ -46,7 +57,7 @@ export default function LinkScreen() {
           <Text style={[styles.brand, { color: t.ink }]}>ChiefStaff</Text>
           <CrashNotice />
           <Title>Link this phone</Title>
-          <Lede>On the web, open Settings and choose “Link your phone”. Type the code it shows.</Lede>
+          <Lede>On the web, open Settings and choose “Link your phone”. Scan the QR with your camera, or type the code.</Lede>
 
           <TextInput
             value={code}

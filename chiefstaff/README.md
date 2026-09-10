@@ -39,15 +39,30 @@ delegate access. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Running it
 
-Node 22 or newer.
+Node 22 or newer, and Docker Desktop (free, from docker.com), opened once.
 
 ```bash
-cp .env.example .env      # fill in ANTHROPIC_API_KEY at minimum
-docker compose up -d      # Postgres on :5432
 npm install
+npm run up
+```
+
+That starts the database, applies the schema, loads a complete demo day, and
+serves the web app at http://localhost:3000. It prints the address a phone on
+the same Wi-Fi uses. Run it every morning; it is safe to repeat.
+
+The demo day is a fictional COO with a full inbox (drafts included), loops in
+both directions, thirteen weeks of numbers with one anomaly, a decision due for
+review, meeting prep for two 1:1s, and a brief — everything the screens show,
+with no account connected and no model call made.
+
+Step by step, if you prefer:
+
+```bash
+cp .env.example .env      # fill in ANTHROPIC_API_KEY when you want the model on
+docker compose up -d      # Postgres on :5432
 npm run db:push           # create the schema
-npm run seed              # a fictional COO with a realistic week of mail
-npm run pipeline          # ingest -> triage -> loops -> brief, printed to stdout
+npm run seed              # the demo day
+npm run pipeline          # ingest -> triage -> loops -> brief (needs the key)
 npm run dev               # http://localhost:3000
 ```
 
@@ -62,10 +77,21 @@ npm run eval -- --runs 3
 
 ## The phone app
 
-`mobile/` is an Expo app (same stack as BusMapp): brief, decision inbox,
-waiting-on, settings. It never touches Google — it links to your account with a
-six-character code the web shows under Settings, then holds a bearer token in
-the keychain.
+`mobile/` is an Expo app (same stack as BusMapp): brief, inbox, waiting-on,
+decisions, settings. It never touches Google — it links to your account from
+the web's Settings page: point the phone's camera at the QR there and the app
+opens and links itself. (Or type the six-character code and the server
+address the page shows.)
+
+To put the current app on TestFlight, one command in `mobile/`:
+
+```bash
+npm run ship
+```
+
+It syncs to the repo, installs, checks every native module against the Expo
+SDK, builds in Expo's cloud and submits to Apple. Twenty minutes; Apple emails
+when it's ready and TestFlight shows an Update button.
 
 ```bash
 cd mobile
