@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { SignedOut } from "@/components/SignedOut";
 import { closeLoop } from "../inbox/actions";
+import { Avatar } from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,10 @@ function LoopCard({ loop, mine }: { loop: LoopRow; mine: boolean }) {
     <article className="card">
       <div className="meta">
         <span className={overdue ? "tag u3" : "tag"}>{age === 0 ? "today" : `${age}d`}</span>
-        <span>{mine ? "you promised " : ""}{loop.person?.name ?? loop.person?.email ?? "unassigned"}</span>
+        <span className="person">
+          <Avatar name={loop.person?.name} email={loop.person?.email} size={20} />
+          {mine ? "you promised " : ""}{loop.person?.name ?? loop.person?.email ?? "unassigned"}
+        </span>
         {loop.dueAt && <span className={overdue ? "stale" : undefined}>due {loop.dueAt.toISOString().slice(0, 10)}</span>}
         {loop.signal?.url && <a href={loop.signal.url} target="_blank" rel="noreferrer">source</a>}
       </div>

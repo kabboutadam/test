@@ -108,8 +108,18 @@ export interface Loop {
   url: string | null;
 }
 
+export interface Series {
+  values: number[];
+  dates: string[];
+  baseline: number;
+  sigma: number;
+  unit: string;
+  goodWhen: string;
+}
+
 export interface Movement {
   id: string;
+  series: Series | null;
   sentence: string;
   deviation: number;
   periodStart: string;
@@ -177,7 +187,13 @@ export const api = {
     }),
   signOut: () => call<{ ok: boolean }>("/api/v1/auth", { method: "DELETE" }),
   me: () => call<{ user: Me }>("/api/v1/me"),
-  brief: () => call<{ brief: Brief | null }>("/api/v1/brief"),
+  brief: () =>
+    call<{
+      brief: Brief | null;
+      stats: { needsYou: number; urgent: number; waiting: number; moved: number; meetings: number; prepared: number };
+      meetings: { id: string; title: string; startsAt: string; prepId: string | null }[];
+      greeting: { name: string | null; timezone: string };
+    }>("/api/v1/brief"),
   decisions: () => call<{ decisions: Decision[] }>("/api/v1/decisions"),
   resolveDecision: (id: string, status: "approved" | "dismissed") =>
     call<{ ok: boolean }>(`/api/v1/decisions/${id}`, { method: "POST", body: JSON.stringify({ status }) }),

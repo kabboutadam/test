@@ -2,6 +2,9 @@ import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { SignedOut } from "@/components/SignedOut";
 import { importMetricsAction, markMovementAction } from "../inbox/actions";
+import { Sparkline } from "@/components/Sparkline";
+import { Avatar } from "@/components/Avatar";
+import { metricSeries } from "@/core/metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,10 @@ export default async function MetricsPage() {
     }),
   ]);
 
+  const open = movements.filter((movement) => movement.status === "open");
+  const openSeries = await Promise.all(open.map((movement) => metricSeries(movement.metricId)));
+  const allSeries = await Promise.all(metrics.map((metric) => metricSeries(metric.id)));
+
   return (
     <main>
       <h1>What moved</h1>
@@ -30,16 +37,26 @@ export default async function MetricsPage() {
         Numbers that left their own normal range. Mark one “not useful” and that metric gets quieter.
       </p>
 
-      {movements.filter((movement) => movement.status === "open").map((movement) => (
+      {open.map((movement, index) => (
         <article key={movement.id} className="card">
-          <div className="meta">
-            <span className={`tag ${Math.abs(movement.deviation) >= 3 ? "u3" : "u2"}`}>
-              {movement.deviation > 0 ? "up" : "down"} {Math.abs(movement.deviation).toFixed(1)}σ
-            </span>
-            <span>{movement.periodStart.toISOString().slice(0, 10)}</span>
-            {movement.metric.owner && <span>{movement.metric.owner.name ?? movement.metric.owner.email}</span>}
+          <div className="movement">
+            <div>
+              <div className="meta">
+                <span className={`tag ${Math.abs(movement.deviation) >= 3 ? "u3" : "u2"}`}>
+                  {movement.deviation > 0 ? "up" : "down"} {Math.abs(movement.deviation).toFixed(1)}σ
+                </span>
+                <span>{movement.periodStart.toISOString().slice(0, 10)}</span>
+                {movement.metric.owner && (
+                  <span className="person">
+                    <Avatar name={movement.metric.owner.name} email={movement.metric.owner.email} size={20} />
+                    {movement.metric.owner.name ?? movement.metric.owner.email}
+                  </span>
+                )}
+              </div>
+              <p className="sentence">{movement.sentence}</p>
+            </div>
+            {openSeries[index] && <Sparkline series={openSeries[index]!} label={movement.metric.name} />}
           </div>
-          <h3>{movement.sentence}</h3>
           <form className="actions">
             <button
               className="primary"
@@ -77,21 +94,21 @@ export default async function MetricsPage() {
 
       <h2>Tracked metrics</h2>
       {metrics.length === 0 && <p className="empty">No metrics yet. Import a CSV above.</p>}
-      {metrics.map((metric) => (
-        <div key={metric.id} className="meta" style={{ marginBottom: 6 }}>
-          <span>
-            <strong>{metric.name}</strong>
-            {metric.segment ? ` · ${metric.segment}` : ""}
-          </span>
-          <span>
-            {metric.points[0]
-              ? `${metric.points[0].value}${metric.unit === "%" ? "%" : metric.unit ? ` ${metric.unit}` : ""} on ${metric.points[0].periodStart.toISOString().slice(0, 10)}`
-              : "no data"}
-          </span>
-          <span className="tag">sensitivity {metric.sensitivity.toFixed(1)}σ</span>
-          {metric.owner && <span>{metric.owner.name ?? metric.owner.email}</span>}
-        </div>
-      ))}
+      <div className="card">
+        {metrics.map((metric, index) => (
+          <div key={metric.id} className="metric-row">
+            <div>
+              <div className="name">{metric.name}{metric.segment ? ` · ${metric.segment}` : ""}</div>
+              <div className="sub">
+                {metric.points[0] ? `latest ${metric.points[0].periodStart.toISOString().slice(0, 10)}` : "no data"} · sensitivity {metric.sensitivity.toFixed(1)}σ
+                {metric.owner ? ` · ${metric.owner.name ?? metric.owner.email}` : ""}
+              </div>
+            </div>
+            {allSeries[index] ? <Sparkline series={allSeries[index]!} width={160} height={44} label={metric.name} /> : <span />}
+            <span />
+          </div>
+        ))}
+      </div>
     </main>
   );
 }

@@ -1,29 +1,34 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import "./globals.css";
+import { Nav } from "@/components/Nav";
+import { Avatar } from "@/components/Avatar";
+import { currentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "ChiefStaff",
   description: "A daily brief and decision inbox for executives.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await currentUser().catch(() => null);
   return (
     <html lang="en">
       <body>
         <div className="shell">
           <header className="top">
             <div className="brand">
-              ChiefStaff <span>· decision inbox</span>
+              <span className="brand-mark" aria-hidden />
+              ChiefStaff
             </div>
-            <nav className="top">
-              <Link href="/brief">Brief</Link>
-              <Link href="/inbox">Inbox</Link>
-              <Link href="/loops">Waiting on</Link>
-              <Link href="/metrics">Moved</Link>
-              <Link href="/decisions">Decisions</Link>
-              <Link href="/settings">Settings</Link>
-            </nav>
+            <Nav />
+            {user && (
+              <div className="who">
+                <span className="who-name">{user.name ?? user.email}</span>
+                <Avatar name={user.name} email={user.email} size={30} />
+              </div>
+            )}
           </header>
           {children}
         </div>

@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, useFetch, type Loop } from "@/api";
+import { Avatar } from "@/components/Avatar";
 import { Button, Card, Empty, Lede, Screen, Tag, Title } from "@/components/ui";
 import { useTheme } from "@/theme";
 
@@ -15,12 +16,13 @@ function LoopCard({ loop, onClosed }: { loop: Loop; onClosed: () => void }) {
   };
 
   return (
-    <Card>
+    <Card stripe={overdue ? t.urgent : undefined}>
       <View style={styles.meta}>
-        <Tag tone={overdue ? "urgent" : "default"}>{loop.daysOpen === 0 ? "today" : `${loop.daysOpen}d`}</Tag>
-        <Text style={[styles.metaText, { color: t.muted }]} numberOfLines={1}>
+        <Avatar name={loop.person?.name} email={loop.person?.email} size={28} />
+        <Text style={[styles.who, { color: t.ink }]} numberOfLines={1}>
           {loop.person?.name ?? loop.person?.email ?? "unassigned"}
         </Text>
+        <Tag tone={overdue ? "urgent" : "default"}>{loop.daysOpen === 0 ? "today" : `${loop.daysOpen}d open`}</Tag>
         {loop.dueAt && (
           <Text style={[styles.metaText, { color: overdue ? t.urgent : t.muted }]}>due {loop.dueAt.slice(0, 10)}</Text>
         )}
@@ -75,7 +77,8 @@ export default function WaitingScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40 },
-  meta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" },
+  meta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" },
+  who: { fontSize: 13, fontWeight: "600", flexShrink: 1 },
   metaText: { fontSize: 12, flexShrink: 1 },
   ask: { fontSize: 16, fontWeight: "600", letterSpacing: -0.2, marginBottom: 12, lineHeight: 22 },
   actions: { flexDirection: "row", alignItems: "center", gap: 8 },

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { api, type Decision, type PersonRow } from "@/api";
 import { useTheme } from "@/theme";
+import { Avatar } from "./Avatar";
 import { Button, Card, Tag } from "./ui";
 
 const URGENCY = ["whenever", "this week", "today", "now"];
@@ -32,18 +33,25 @@ export function DecisionCard({
 
   const source = decision.citations[0];
 
+  const stripe = decision.urgency === 3 ? t.urgent : decision.urgency === 2 ? t.accent : undefined;
+
   return (
-    <Card>
+    <Card stripe={stripe}>
       <View style={styles.meta}>
-        <Tag tone={decision.urgency === 3 ? "urgent" : decision.urgency === 2 ? "warm" : "default"}>
-          {URGENCY[decision.urgency]}
-        </Tag>
-        <Tag>{decision.category}</Tag>
-        {decision.person && (
-          <Text style={[styles.metaText, { color: t.muted }]} numberOfLines={1}>
-            {decision.person.name ?? decision.person.email}
-          </Text>
-        )}
+        {decision.person && <Avatar name={decision.person.name} email={decision.person.email} size={28} />}
+        <View style={{ flex: 1, gap: 2 }}>
+          {decision.person && (
+            <Text style={[styles.who, { color: t.ink }]} numberOfLines={1}>
+              {decision.person.name ?? decision.person.email}
+            </Text>
+          )}
+          <View style={styles.tags}>
+            <Tag tone={decision.urgency === 3 ? "urgent" : decision.urgency === 2 ? "warm" : "default"}>
+              {URGENCY[decision.urgency]}
+            </Tag>
+            <Tag>{decision.category}</Tag>
+          </View>
+        </View>
       </View>
 
       <Text style={[styles.title, { color: t.ink }]}>{decision.title}</Text>
@@ -98,8 +106,9 @@ export function DecisionCard({
 }
 
 const styles = StyleSheet.create({
-  meta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" },
-  metaText: { fontSize: 12, flexShrink: 1 },
+  meta: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+  who: { fontSize: 13, fontWeight: "600" },
+  tags: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   title: { fontSize: 16, fontWeight: "600", letterSpacing: -0.2, marginBottom: 4 },
   why: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
   draft: { borderWidth: 1, borderLeftWidth: 2, borderRadius: 6, padding: 12, marginBottom: 12 },

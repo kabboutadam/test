@@ -3,6 +3,8 @@ import { currentUser } from "@/lib/session";
 import { SignedOut } from "@/components/SignedOut";
 import { hitRates, RECORD_CATEGORIES } from "@/core/decision-log";
 import { logDecisionAction, recordOutcomeAction } from "../inbox/actions";
+import { RateBar } from "@/components/RateBar";
+import { Avatar } from "@/components/Avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +77,12 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Pr
           <div className="meta">
             <span className="tag">{record.category}</span>
             <span>review {record.reviewAt.toISOString().slice(0, 10)}</span>
-            {record.owner && <span>owner {record.owner.name ?? record.owner.email}</span>}
+            {record.owner && (
+              <span className="person">
+                <Avatar name={record.owner.name} email={record.owner.email} size={20} />
+                {record.owner.name ?? record.owner.email}
+              </span>
+            )}
             {record.reviewRequestedAt && <span className="tag u2">review in inbox</span>}
           </div>
           <h3>{record.title}</h3>
@@ -95,15 +102,19 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Pr
       {rates.closed > 0 && (
         <>
           <h2>Hit rate ({rates.closed} closed)</h2>
-          <div className="card">
-            {rates.byCategory.map((row) => (
-              <div key={row.name} className="meta"><span><strong>{row.name}</strong></span><span>{pct(row.rate)} · {row.hit} hit, {row.mixed} mixed, {row.miss} miss</span></div>
-            ))}
-          </div>
-          <div className="card">
-            {rates.byDecider.map((row) => (
-              <div key={row.name} className="meta"><span><strong>{row.name}</strong></span><span>{pct(row.rate)} over {row.total}</span></div>
-            ))}
+          <div className="split">
+            <div className="card">
+              <div className="eyebrow">By category</div>
+              {rates.byCategory.map((row) => (
+                <RateBar key={row.name} rate={row.rate} label={row.name} detail={`${row.hit} hit · ${row.mixed} mixed · ${row.miss} miss`} />
+              ))}
+            </div>
+            <div className="card">
+              <div className="eyebrow">By decider</div>
+              {rates.byDecider.map((row) => (
+                <RateBar key={row.name} rate={row.rate} label={row.name} detail={`over ${row.total}`} />
+              ))}
+            </div>
           </div>
         </>
       )}

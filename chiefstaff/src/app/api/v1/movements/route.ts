@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { authed, json } from "@/lib/api";
+import { metricSeries } from "@/core/metrics";
 
 export async function GET(request: NextRequest) {
   const auth = await authed(request);
@@ -12,10 +13,11 @@ export async function GET(request: NextRequest) {
     take: 20,
     include: { metric: { include: { owner: true } } },
   });
+  const sorted = movements.sort((a, b) => Math.abs(b.deviation) - Math.abs(a.deviation));
+  const series = await Promise.all(sorted.map((movement) => metricSeries(movement.metricId)));
   return json({
-    movements: movements
-      .sort((a, b) => Math.abs(b.deviation) - Math.abs(a.deviation))
-      .map((movement) => ({
+    movements: sorted.map((movement, index) => ({
+        series: series[index],
         id: movement.id,
         sentence: movement.sentence,
         deviation: movement.deviation,

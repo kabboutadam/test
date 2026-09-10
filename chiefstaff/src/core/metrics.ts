@@ -232,3 +232,38 @@ export async function staleMetrics(userId: string, maxAgeDays = 14) {
   const cutoff = Date.now() - maxAgeDays * 86_400_000;
   return metrics.filter((metric) => !metric.points[0] || metric.points[0].periodStart.getTime() < cutoff);
 }
+
+export interface Series {
+  /** Oldest first. */
+  values: number[];
+  dates: string[];
+  /** Mean and spread of everything before the last point — the "normal" band. */
+  baseline: number;
+  sigma: number;
+  unit: string;
+  goodWhen: string;
+}
+
+/** History for a sparkline. `baseline`/`sigma` exclude the last point, as detection does. */
+export async function metricSeries(metricId: string, limit = WINDOW): Promise<Series | null> {
+  const metric = await db.metric.findUnique({
+    where: { id: metricId },
+    include: { points: { orderBy: { periodStart: "desc" }, take: limit } },
+  });
+  if (!metric || metric.points.length === 0) return null;
+
+  const ordered = [...metric.points].reverse();
+  const values = ordered.map((point) => point.value);
+  const history = values.slice(0, -1);
+  const baseline = history.length ? history.reduce((sum, value) => sum + value, 0) / history.length : values[0];
+  const variance = history.length ? history.reduce((sum, value) => sum + (value - baseline) ** 2, 0) / history.length : 0;
+
+  return {
+    values,
+    dates: ordered.map((point) => point.periodStart.toISOString().slice(0, 10)),
+    baseline,
+    sigma: Math.sqrt(variance),
+    unit: metric.unit,
+    goodWhen: metric.goodWhen,
+  };
+}

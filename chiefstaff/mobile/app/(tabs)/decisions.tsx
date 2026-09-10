@@ -2,7 +2,8 @@ import { useCallback, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, useFetch, type DecisionRecord } from "@/api";
-import { Button, Card, Empty, Lede, Screen, Tag, Title } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
+import { Button, Card, Empty, Lede, RateBar, Screen, Section, Tag, Title } from "@/components/ui";
 import { useTheme } from "@/theme";
 
 function RecordCard({ record, onChanged }: { record: DecisionRecord; onChanged: () => void }) {
@@ -13,14 +14,17 @@ function RecordCard({ record, onChanged }: { record: DecisionRecord; onChanged: 
     onChanged();
   };
   const open = record.status === "open";
+  const stripe = record.status === "miss" ? t.bad : record.status === "hit" ? t.good : record.reviewRequested ? t.accent : undefined;
   return (
-    <Card>
+    <Card stripe={stripe}>
       <View style={styles.meta}>
-        <Tag tone={record.status === "miss" ? "urgent" : record.status === "open" ? "default" : "warm"}>{open ? record.category : record.status}</Tag>
-        <Text style={[styles.metaText, { color: t.muted }]}>
-          {open ? `review ${record.reviewAt.slice(0, 10)}` : `closed`}
+        {record.owner && <Avatar name={record.owner.name} email={record.owner.email} size={28} />}
+        <Tag tone={record.status === "miss" ? "urgent" : record.status === "hit" ? "good" : record.status === "open" ? "default" : "warm"}>
+          {open ? record.category : record.status}
+        </Tag>
+        <Text style={[styles.metaText, { color: record.reviewRequested ? t.accent : t.muted }]}>
+          {open ? (record.reviewRequested ? "review due" : `review ${record.reviewAt.slice(0, 10)}`) : "closed"}
         </Text>
-        {record.owner && <Text style={[styles.metaText, { color: t.muted }]}>{record.owner.name ?? record.owner.email}</Text>}
       </View>
       <Text style={[styles.title, { color: t.ink }]}>{record.title}</Text>
       <Text style={[styles.why, { color: t.muted }]}>Expected: {record.expected}</Text>
@@ -82,10 +86,20 @@ export default function DecisionsScreen() {
           </Card>
 
           {rates && rates.closed > 0 && (
-            <Text style={[styles.rates, { color: t.muted }]}>
-              {rates.closed} closed · {rates.byCategory.map((row) => `${row.name} ${Math.round(row.rate * 100)}%`).join(" · ")}
-            </Text>
+            <>
+              <Section>Hit rate</Section>
+              <Card>
+                <Text style={[styles.rates, { color: t.muted }]}>
+                  {rates.closed} closed. Share of decisions whose expectation came true, by category.
+                </Text>
+                {rates.byCategory.map((row) => (
+                  <RateBar key={row.name} rate={row.rate} label={row.name} detail={`${row.hit} hit · ${row.mixed} mixed · ${row.miss} miss`} />
+                ))}
+              </Card>
+            </>
           )}
+
+          <Section>Decisions</Section>
 
           {records.map((record) => (
             <RecordCard key={record.id} record={record} onChanged={() => void refresh()} />

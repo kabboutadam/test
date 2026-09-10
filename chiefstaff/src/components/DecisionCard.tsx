@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Decision, Person } from "@prisma/client";
 import { delegateDecision, resolveDecision, snoozeDecision } from "@/app/inbox/actions";
+import { Avatar } from "./Avatar";
 
 const URGENCY_LABEL = ["whenever", "this week", "today", "now"];
 
@@ -20,11 +21,16 @@ export function DecisionCard({
   const logHref = `/decisions?from=${decision.id}&title=${encodeURIComponent(decision.title)}&why=${encodeURIComponent(decision.why)}`;
 
   return (
-    <article className="card">
+    <article className={`card${decision.urgency >= 2 ? ` u${decision.urgency}` : ""}`}>
       <div className="meta">
         <span className={`tag u${decision.urgency}`}>{URGENCY_LABEL[decision.urgency]}</span>
         <span className="tag">{decision.category}</span>
-        {decision.person && <span>{decision.person.name ?? decision.person.email}</span>}
+        {decision.person && (
+          <span className="person">
+            <Avatar name={decision.person.name} email={decision.person.email} size={20} />
+            {decision.person.name ?? decision.person.email}
+          </span>
+        )}
         {citations.map((citation) => (
           <a key={citation.url} href={citation.url} target="_blank" rel="noreferrer">source</a>
         ))}
