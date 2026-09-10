@@ -29,7 +29,11 @@ export default function LinkScreen() {
       const result = await api.link(cleaned, Device.modelName ?? Platform.OS);
       await setToken(result.token);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "could not reach the server");
+      setError(
+        caught instanceof ApiError
+          ? caught.message
+          : `could not reach ${server} — check the address, that the server is running, and Local Network permission in iOS Settings`,
+      );
     } finally {
       setBusy(false);
     }

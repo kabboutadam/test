@@ -44,6 +44,8 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const [token, base] = await Promise.all([getToken(), getApiUrl()]);
   const response = await fetch(`${base}${path}`, {
     ...init,
+    // A server that cannot be reached should say so, not spin forever.
+    signal: AbortSignal.timeout(20_000),
     headers: {
       "content-type": "application/json",
       ...(token ? { authorization: `Bearer ${token}` } : {}),
