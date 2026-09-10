@@ -39,6 +39,15 @@ export default function SettingsScreen() {
     setNote((await registerForPush()) ? "Push is on. The brief will arrive at your brief hour." : "Push is off — allow notifications in system settings, or this is a simulator.");
   };
 
+  const test = async () => {
+    try {
+      const result = await api.testPush();
+      setNote(result.sent > 0 ? "Sent. It arrives in a few seconds — lock the phone to see it as a banner." : "Nothing sent — tap Turn on push first.");
+    } catch (caught) {
+      setNote(caught instanceof Error ? caught.message : "could not send");
+    }
+  };
+
   const leave = async () => {
     await api.signOut().catch(() => undefined);
     await signOut();
@@ -67,6 +76,7 @@ export default function SettingsScreen() {
 
           <View style={styles.stack}>
             <Button onPress={() => void push()}>Turn on push</Button>
+            <Button onPress={() => void test()}>Send a test push</Button>
             <Button onPress={() => void sync()} disabled={!me?.connected}>
               Sync now
             </Button>

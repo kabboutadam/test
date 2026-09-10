@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
 import { googleConfigured } from "@/lib/env";
-import { linkPhone } from "../inbox/actions";
+import { linkPhone, testPush } from "../inbox/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +67,11 @@ export default async function SettingsPage() {
           ? "No phone linked. The brief arrives by push at your brief hour once one is."
           : `${devices} ${devices === 1 ? "phone" : "phones"} linked.`}
       </p>
+      {devices > 0 && (
+        <form action={testPush} style={{ marginBottom: 12 }}>
+          <button>Send a test push</button>
+        </form>
+      )}
       {liveCode ? (
         <article className="card">
           <div className="meta">

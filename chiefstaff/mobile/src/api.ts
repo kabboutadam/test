@@ -197,6 +197,7 @@ export const api = {
   closeLoop: (id: string, status: "answered" | "dropped") =>
     call<{ ok: boolean }>(`/api/v1/loops/${id}`, { method: "POST", body: JSON.stringify({ status }) }),
   sync: () => call<{ queued: boolean }>("/api/v1/sync", { method: "POST" }),
+  testPush: () => call<{ sent: number; failed: number }>("/api/v1/devices/test", { method: "POST" }),
   registerDevice: (expoPushToken: string, platform: string) =>
     call<{ ok: boolean }>("/api/v1/devices", {
       method: "POST",

@@ -9,6 +9,7 @@ import { importMetricRows, markMovement, parseMetricsCsv } from "@/core/metrics"
 import { runDeterministic } from "@/core/pipeline";
 import { delegate, snooze } from "@/core/inbox";
 import { createLinkCode } from "@/lib/api-auth";
+import { sendPush } from "@/lib/push";
 
 function refresh() {
   for (const path of ["/inbox", "/brief", "/loops", "/decisions", "/metrics"]) revalidatePath(path);
@@ -107,5 +108,22 @@ export async function markMovementAction(id: string, status: "useful" | "not_use
 export async function linkPhone() {
   const user = await requireUser();
   await createLinkCode(user.id);
+  revalidatePath("/settings");
+}
+
+/** A hello to every linked phone, from the web. */
+export async function testPush() {
+  const user = await requireUser();
+  const devices = await db.device.findMany({ where: { userId: user.id } });
+  if (devices.length === 0) return;
+  const result = await sendPush(
+    devices.map((device) => ({
+      to: device.expoPushToken,
+      title: "ChiefStaff",
+      body: "Push works. Your brief will arrive this way.",
+      data: { screen: "brief" },
+    })),
+  );
+  if (result.dead.length) await db.device.deleteMany({ where: { expoPushToken: { in: result.dead } } });
   revalidatePath("/settings");
 }
