@@ -14,7 +14,8 @@
     "pipeline": "tsx --env-file-if-exists=.env scripts/run-pipeline.ts",
     "eval": "tsx --env-file-if-exists=.env evals/run.ts",
     "worker": "tsx --env-file-if-exists=.env scripts/worker.ts",
-    "up": "bash scripts/up.sh"
+    "up": "bash scripts/up.sh",
+    "ship": "npm --prefix mobile run ship"
   },
   "prisma": {
     "seed": "tsx --env-file-if-exists=.env prisma/seed.ts"
