@@ -266,7 +266,7 @@ export async function metricSeries(metricId: string, limit = WINDOW): Promise<Se
     include: { points: { orderBy: { periodStart: "desc" }, take: limit } },
   });
   if (!metric || metric.points.length === 0) return null;
-  return buildSeries([...metric.points].reverse(), metric);
+  return buildSeries(completePeriods([...metric.points].reverse()), metric);
 }
 
 /** A series from points already in hand, oldest first. */

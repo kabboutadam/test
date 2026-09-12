@@ -23,18 +23,18 @@ function spansToHtml(spans: Span[]): string {
 // Mail clients strip <style> unpredictably, so everything is inlined. Kept
 // deliberately plain: this is read on a phone, one-handed, before coffee.
 const STYLES = {
-  body: "margin:0;padding:24px 16px;background:#fbfbfa;font:16px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1c1b19;",
+  body: "margin:0;padding:24px 16px;background:#fafafb;font:16px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111318;",
   wrap: "max-width:520px;margin:0 auto;",
   greeting: "font-size:20px;font-weight:600;letter-spacing:-0.02em;margin:0 0 4px;",
-  date: "color:#6f6b66;font-size:13px;margin:0 0 26px;",
+  date: "color:#5f6570;font-size:13px;margin:0 0 26px;",
   heading:
-    "font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#8a4b2a;margin:26px 0 10px;",
+    "font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#1a56f0;margin:26px 0 10px;",
   paragraph: "margin:0 0 12px;",
   list: "margin:0 0 12px;padding-left:20px;",
   item: "margin:0 0 7px;",
   footer:
-    "margin-top:34px;padding-top:16px;border-top:1px solid #e6e4e0;color:#6f6b66;font-size:13px;",
-  link: "color:#8a4b2a;",
+    "margin-top:34px;padding-top:16px;border-top:1px solid #e4e6ea;color:#5f6570;font-size:13px;",
+  link: "color:#1a56f0;",
 };
 
 export function renderBriefEmail(user: User, brief: Brief, appUrl: string): Envelope {
