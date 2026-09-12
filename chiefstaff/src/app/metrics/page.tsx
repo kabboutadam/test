@@ -5,6 +5,8 @@ import { importMetricsAction, markMovementAction } from "../inbox/actions";
 import { Sparkline } from "@/components/Sparkline";
 import { Avatar } from "@/components/Avatar";
 import { metricSeries } from "@/core/metrics";
+import { isSalesKey } from "@/core/sales";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,10 @@ export default async function MetricsPage() {
 
   const open = movements.filter((movement) => movement.status === "open");
   const openSeries = await Promise.all(open.map((movement) => metricSeries(movement.metricId)));
-  const allSeries = await Promise.all(metrics.map((metric) => metricSeries(metric.id)));
+  // Sales numbers have their own page; here they would drown the operating metrics.
+  const salesCount = metrics.filter((metric) => isSalesKey(metric.key)).length;
+  const tracked = metrics.filter((metric) => !isSalesKey(metric.key));
+  const allSeries = await Promise.all(tracked.map((metric) => metricSeries(metric.id)));
 
   return (
     <main>
@@ -94,8 +99,13 @@ export default async function MetricsPage() {
 
       <h2>Tracked metrics</h2>
       {metrics.length === 0 && <p className="empty">No metrics yet. Import a CSV above.</p>}
+      {salesCount > 0 && (
+        <p className="sub" style={{ marginBottom: 10 }}>
+          {salesCount} sales {salesCount === 1 ? "metric lives" : "metrics live"} on the <Link href="/sales">Sales page</Link>.
+        </p>
+      )}
       <div className="card">
-        {metrics.map((metric, index) => (
+        {tracked.map((metric, index) => (
           <div key={metric.id} className="metric-row">
             <div>
               <div className="name">{metric.name}{metric.segment ? ` · ${metric.segment}` : ""}</div>

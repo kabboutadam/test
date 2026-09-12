@@ -1,4 +1,5 @@
 import type { Series } from "@/core/metrics";
+import { money } from "@/core/sales";
 
 /**
  * One metric's recent history, with its normal band and the latest point
@@ -36,7 +37,7 @@ export function Sparkline({
   const isBad = goodWhen === "neutral" ? null : (goodWhen === "up") !== (last > baseline);
   const markerClass = !moved ? "sp-mark" : isBad === false ? "sp-mark sp-good" : isBad ? "sp-mark sp-bad" : "sp-mark sp-moved";
 
-  const fmt = (value: number) => (unit === "%" ? `${value.toFixed(1)}%` : unit && /^[€$£]$/.test(unit) ? `${unit}${Math.round(value).toLocaleString("en-US")}` : `${Math.round(value * 10) / 10}${unit ? ` ${unit}` : ""}`);
+  const fmt = (value: number) => (unit === "%" ? `${value.toFixed(1)}%` : unit && /^[€$£]$/.test(unit) ? money(value, unit) : `${Math.round(value * 10) / 10}${unit ? ` ${unit}` : ""}`);
 
   return (
     <svg
@@ -56,7 +57,7 @@ export function Sparkline({
         </circle>
       ))}
       <circle className={markerClass} cx={x(n - 1)} cy={y(last)} r={4.5} />
-      <text className="sp-label" x={width - pad} y={Math.min(height - 4, Math.max(11, y(last) - 8))} textAnchor="end">
+      <text className="sp-label" x={width - pad - 12} y={Math.min(height - 4, Math.max(11, y(last) - 8))} textAnchor="end">
         {fmt(last)}
       </text>
     </svg>

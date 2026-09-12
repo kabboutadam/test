@@ -125,6 +125,21 @@ function formatValue(value: number, unit: string): string {
   return unit ? `${rounded} ${unit}` : rounded;
 }
 
+
+/**
+ * Drops trailing points whose period has not ended yet: a month-to-date
+ * figure imported on the 12th is not a collapse. The period length is
+ * inferred from the spacing of the series itself (weekly, monthly, …).
+ */
+export function completePeriods<T extends { periodStart: Date }>(ordered: T[], now = new Date()): T[] {
+  if (ordered.length < 2) return ordered;
+  const gaps = ordered.slice(1).map((point, index) => point.periodStart.getTime() - ordered[index].periodStart.getTime()).sort((a, b) => a - b);
+  const period = gaps[Math.floor(gaps.length / 2)];
+  let end = ordered.length;
+  while (end > 0 && ordered[end - 1].periodStart.getTime() + period > now.getTime()) end--;
+  return ordered.slice(0, end);
+}
+
 export interface Detected {
   metric: Metric;
   latest: MetricPoint;
@@ -138,8 +153,8 @@ export interface Detected {
  * Returns null when the history is too short to say anything honest, or the
  * spread is zero (a constant series that changed is reported as a big move).
  */
-export function detect(metric: Metric, points: MetricPoint[]): Detected | null {
-  const ordered = [...points].sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime()).slice(-WINDOW);
+export function detect(metric: Metric, points: MetricPoint[], now = new Date()): Detected | null {
+  const ordered = completePeriods([...points].sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime()), now).slice(-WINDOW);
   if (ordered.length < MIN_HISTORY) return null;
 
   const latest = ordered[ordered.length - 1];
@@ -251,8 +266,12 @@ export async function metricSeries(metricId: string, limit = WINDOW): Promise<Se
     include: { points: { orderBy: { periodStart: "desc" }, take: limit } },
   });
   if (!metric || metric.points.length === 0) return null;
+  return buildSeries([...metric.points].reverse(), metric);
+}
 
-  const ordered = [...metric.points].reverse();
+/** A series from points already in hand, oldest first. */
+export function buildSeries(ordered: MetricPoint[], metric: Pick<Metric, "unit" | "goodWhen">): Series | null {
+  if (ordered.length === 0) return null;
   const values = ordered.map((point) => point.value);
   const history = values.slice(0, -1);
   const baseline = history.length ? history.reduce((sum, value) => sum + value, 0) / history.length : values[0];

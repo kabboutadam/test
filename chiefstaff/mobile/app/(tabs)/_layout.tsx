@@ -35,6 +35,10 @@ export default function TabsLayout() {
         options={{ title: "Waiting on", tabBarIcon: ({ color, size }) => <Ionicons name="hourglass-outline" color={color} size={size} /> }}
       />
       <Tabs.Screen
+        name="sales"
+        options={{ title: "Sales", tabBarIcon: ({ color, size }) => <Ionicons name="trending-up-outline" color={color} size={size} /> }}
+      />
+      <Tabs.Screen
         name="decisions"
         options={{ title: "Decisions", tabBarIcon: ({ color, size }) => <Ionicons name="git-branch-outline" color={color} size={size} /> }}
       />

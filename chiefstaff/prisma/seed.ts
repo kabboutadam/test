@@ -168,7 +168,10 @@ async function main() {
 
   // ---- Thirteen weeks of numbers with one real anomaly.
   const { importMetricRows } = await import("../src/core/metrics");
-  const week = (n: number) => new Date(Date.now() - (12 - n) * 7 * 86_400_000);
+  // Weeks start on Monday; the latest is last week, already complete.
+  const today = new Date();
+  const monday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - ((today.getUTCDay() + 6) % 7)));
+  const week = (n: number) => new Date(monday.getTime() - (13 - n) * 7 * 86_400_000);
   const labour = { Rotterdam: [27.5, 28.1, 27.9, 28.4, 27.7, 28.0, 28.3, 27.8, 28.2, 27.6, 28.1, 27.9, 34.1], Antwerp: [30.2, 29.8, 30.5, 30.1, 29.9, 30.4, 30.0, 30.3, 29.7, 30.2, 30.1, 29.9, 30.3] };
   const onTime = [96.1, 95.8, 96.4, 96.0, 95.9, 96.2, 96.3, 95.7, 96.1, 96.0, 95.8, 96.2, 96.0];
   const arAging = [412, 398, 425, 407, 415, 402, 419, 410, 396, 408, 421, 404, 411];
@@ -179,6 +182,54 @@ async function main() {
     rows.push({ key: "ar_over_60", name: "AR over 60 days", segment: "", period: week(n), value: arAging[n] * 1000, unit: "€", goodWhen: "down" as const, owner: "sarah@northwind.example" });
   }
   console.log("metrics:", await importMetricRows(user, rows));
+
+  // ---- Twelve complete months of sales plus the month in progress.
+  // Northwind is a €50M/yr logistics business: three lines, eight named
+  // accounts, a pipeline that is thinner than the targets assume. August
+  // missed on freight forwarding; September is pacing slightly under.
+  const nowUtc = new Date();
+  const monthStart = (back: number) => new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth() - back, 1));
+  const lineSeries: Record<string, number[]> = {
+    "Contract logistics": [1.92, 1.95, 2.01, 2.08, 1.90, 1.97, 2.04, 2.06, 2.10, 2.12, 2.15, 2.18, 0.86],
+    "Freight forwarding": [1.38, 1.41, 1.36, 1.44, 1.30, 1.39, 1.42, 1.45, 1.40, 1.43, 1.41, 1.24, 0.47],
+    "Warehousing": [0.78, 0.79, 0.81, 0.80, 0.82, 0.84, 0.85, 0.86, 0.88, 0.89, 0.91, 0.93, 0.37],
+  };
+  const targetSeries = [4.05, 4.10, 4.15, 4.25, 4.10, 4.20, 4.30, 4.35, 4.40, 4.45, 4.50, 4.55, 4.60, 4.65, 4.70, 4.75];
+  const customerSeries: Record<string, number> = {
+    "Halvorsen Foods": 0.92, "Brandt Chemicals": 0.61, "Orion Retail Group": 0.48, "Nordsee Seafood": 0.37,
+    "Kessler Automotive": 0.33, "Tulipa Flowers": 0.26, "Vega Electronics": 0.22, "Meridian Pharma": 0.18,
+    "Aalto Timber": 0.14, "Cobalt Mining Services": 0.11, "Everything else": 0.55,
+  };
+  const bookings = [1.05, 1.12, 0.98, 1.20, 0.90, 1.08, 1.15, 1.22, 1.10, 1.18, 1.25, 1.14];
+  const winRate = [29, 31, 28, 30, 27, 30, 32, 31, 29, 30, 28, 24];
+  const grossMargin = [23.8, 23.6, 23.9, 24.1, 23.5, 23.7, 24.0, 24.2, 24.1, 23.9, 23.6, 22.4];
+  const avgDeal = [235, 248, 226, 252, 218, 240, 257, 261, 244, 249, 238, 241];
+  const sales = [];
+  const M = 1_000_000;
+  for (let n = 0; n < 13; n++) {
+    const period = monthStart(12 - n);
+    let total = 0;
+    for (const [line, values] of Object.entries(lineSeries)) {
+      total += values[n];
+      sales.push({ key: "revenue", name: "Revenue", segment: line, period, value: values[n] * M, unit: "€", goodWhen: "up" as const, owner: "marco@northwind.example" });
+    }
+    sales.push({ key: "revenue", name: "Revenue", segment: "", period, value: total * M, unit: "€", goodWhen: "up" as const, owner: "marco@northwind.example" });
+    const wobble = (index: number, seed: number) => 1 + 0.06 * Math.sin(index * 1.7 + seed);
+    Object.entries(customerSeries).forEach(([customer, base], index) =>
+      sales.push({ key: "customer_revenue", name: "Customer revenue", segment: customer, period, value: base * wobble(n, index) * M * (n === 12 ? 0.4 : 1), unit: "€", goodWhen: "up" as const, owner: "" }),
+    );
+    if (n < 12) {
+      sales.push({ key: "bookings", name: "Bookings", segment: "", period, value: bookings[n] * M, unit: "€", goodWhen: "up" as const, owner: "marco@northwind.example" });
+      sales.push({ key: "win_rate", name: "Win rate", segment: "", period, value: winRate[n], unit: "%", goodWhen: "up" as const, owner: "marco@northwind.example" });
+      sales.push({ key: "gross_margin", name: "Gross margin", segment: "", period, value: grossMargin[n], unit: "%", goodWhen: "up" as const, owner: "sarah@northwind.example" });
+      sales.push({ key: "avg_deal_size", name: "Avg deal size", segment: "", period, value: avgDeal[n] * 1000, unit: "€", goodWhen: "up" as const, owner: "" });
+    }
+  }
+  targetSeries.forEach((value, n) => sales.push({ key: "revenue_target", name: "Revenue target", segment: "", period: monthStart(12 - n), value: value * M, unit: "€", goodWhen: "neutral" as const, owner: "" }));
+  const stages: Record<string, number> = { Qualified: 6.2, Proposal: 3.1, Negotiation: 1.9, Verbal: 0.9 };
+  for (const [stage, value] of Object.entries(stages))
+    sales.push({ key: "pipeline", name: "Pipeline", segment: stage, period: monthStart(0), value: value * M, unit: "€", goodWhen: "up" as const, owner: "marco@northwind.example" });
+  console.log("sales:", await importMetricRows(user, sales));
 
   // ---- Decision log: one closed, one open, one due for review.
   const { logDecision } = await import("../src/core/decision-log");

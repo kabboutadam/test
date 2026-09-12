@@ -1,5 +1,6 @@
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 import type { Series } from "@/api";
+import { money } from "@/format";
 import { useTheme } from "@/theme";
 
 /** One metric's history with its normal band and the latest point marked. */
@@ -21,7 +22,7 @@ export function Sparkline({ series, width = 150, height = 52 }: { series: Series
   const moved = Math.abs(deviation) >= 2;
   const isBad = goodWhen === "neutral" ? null : (goodWhen === "up") !== (last > baseline);
   const marker = !moved ? t.chart : isBad === false ? t.good : isBad ? t.bad : t.chart;
-  const fmt = (v: number) => (unit === "%" ? `${v.toFixed(1)}%` : /^[€$£]$/.test(unit) ? `${unit}${Math.round(v).toLocaleString("en-US")}` : `${Math.round(v * 10) / 10}`);
+  const fmt = (v: number) => (unit === "%" ? `${v.toFixed(1)}%` : /^[€$£]$/.test(unit) ? money(v, unit) : `${Math.round(v * 10) / 10}`);
 
   return (
     <Svg width={width} height={height}>
@@ -29,7 +30,7 @@ export function Sparkline({ series, width = 150, height = 52 }: { series: Series
       <Line x1={pad} x2={width - pad} y1={y(baseline)} y2={y(baseline)} stroke={t.faint} strokeWidth={1} />
       <Path d={d} stroke={t.chart} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
       <Circle cx={x(n - 1)} cy={y(last)} r={4.5} fill={marker} stroke={t.panel} strokeWidth={2} />
-      <SvgText x={width - pad} y={Math.min(height - 4, Math.max(11, y(last) - 8))} textAnchor="end" fontSize={11} fontWeight="600" fill={t.muted}>
+      <SvgText x={width - pad - 12} y={Math.min(height - 4, Math.max(11, y(last) - 8))} textAnchor="end" fontSize={11} fontWeight="600" fill={t.muted}>
         {fmt(last)}
       </SvgText>
     </Svg>

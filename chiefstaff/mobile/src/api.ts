@@ -128,6 +128,44 @@ export interface Movement {
   owner: Person | null;
 }
 
+
+export interface MonthPoint {
+  month: string;
+  actual: number;
+  target: number | null;
+  partial: boolean;
+}
+export interface Bar {
+  label: string;
+  value: number;
+  share: number;
+}
+export interface Kpi {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+  delta: number | null;
+  goodWhen: string;
+  note: string;
+}
+export interface Reading {
+  topic: "revenue" | "lines" | "pipeline" | "customers" | "rates";
+  tone: "good" | "bad" | "neutral";
+  text: string;
+}
+export interface SalesView {
+  currency: string;
+  months: MonthPoint[];
+  mtd: { actual: number; target: number | null; pace: number; day: number; days: number } | null;
+  ytd: { actual: number; target: number | null };
+  lines: { name: string; latest: number; growth: number | null; series: Series }[];
+  pipeline: { stages: Bar[]; total: number; coverage: number | null; asOf: string } | null;
+  customers: { rows: Bar[]; total: number; top1: number; top3: number } | null;
+  kpis: Kpi[];
+  readings: Reading[];
+}
+
 export interface DecisionRecord {
   id: string;
   title: string;
@@ -203,6 +241,7 @@ export const api = {
     call<{ ok: boolean }>(`/api/v1/decisions/${id}`, { method: "POST", body: JSON.stringify({ status: "delegated", to }) }),
   people: () => call<{ people: PersonRow[] }>("/api/v1/people"),
   movements: () => call<{ movements: Movement[] }>("/api/v1/movements"),
+  sales: () => call<{ sales: SalesView | null }>("/api/v1/sales"),
   markMovement: (id: string, status: "useful" | "not_useful") =>
     call<{ ok: boolean }>(`/api/v1/movements/${id}`, { method: "POST", body: JSON.stringify({ status }) }),
   decisionLog: () => call<{ records: DecisionRecord[]; rates: HitRates }>("/api/v1/decision-log"),

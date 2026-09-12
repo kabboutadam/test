@@ -8,6 +8,7 @@ const ITEMS = [
   ["/inbox", "Inbox"],
   ["/loops", "Waiting on"],
   ["/metrics", "Moved"],
+  ["/sales", "Sales"],
   ["/decisions", "Decisions"],
   ["/settings", "Settings"],
 ] as const;
