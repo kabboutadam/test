@@ -228,8 +228,12 @@ export const api = {
   brief: () =>
     call<{
       brief: Brief | null;
-      stats: { needsYou: number; urgent: number; waiting: number; moved: number; meetings: number; prepared: number };
-      meetings: { id: string; title: string; startsAt: string; prepId: string | null }[];
+      stats: { needsYou: number; urgent: number; waiting: number; owed: number; moved: number; meetings: number; prepared: number };
+      dayLine: string;
+      meetings: { id: string; title: string; startsAt: string; tomorrow: boolean; prepId: string | null }[];
+      talkTo: { name: string; email: string; reasons: string[] }[];
+      waiting: { id: string; ask: string; person: Person | null; daysOpen: number; overdue: boolean }[];
+      reviews: { id: string; title: string; expected: string }[];
       greeting: { name: string | null; timezone: string };
     }>("/api/v1/brief"),
   decisions: () => call<{ decisions: Decision[] }>("/api/v1/decisions"),
