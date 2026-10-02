@@ -33,7 +33,7 @@ echo "▸ database"
 for i in $(seq 1 30); do "$DOCKER" compose exec -T db pg_isready -U chief >/dev/null 2>&1 && break; sleep 1; done
 
 echo "▸ schema"
-npx prisma db push --skip-generate >/dev/null
+npx prisma db push >/dev/null
 echo "▸ demo data"
 npm run -s seed
 
