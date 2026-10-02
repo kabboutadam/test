@@ -29,8 +29,8 @@ export interface CatalogEntry {
 }
 
 export const CATALOG: CatalogEntry[] = [
-  { id: "google", name: "Google Workspace", group: "Mail and calendar", brings: "Gmail and Google Calendar, read-only.", how: "oauth", ready: googleConfigured(), note: "Needs a free Google OAuth client in .env." },
-  { id: "microsoft", name: "Microsoft 365 / Outlook.com", group: "Mail and calendar", brings: "Outlook mail and calendar, read-only. Works for Hotmail, Outlook.com and work accounts.", how: "oauth", ready: microsoftConfigured(), note: "Needs a free app registration at portal.azure.com." },
+  { id: "google", name: "Google Workspace", group: "Mail and calendar", brings: "Gmail and Google Calendar, read-only.", how: "oauth", ready: googleConfigured() },
+  { id: "microsoft", name: "Microsoft 365 / Outlook.com", group: "Mail and calendar", brings: "Outlook mail and calendar, read-only. Works for Hotmail, Outlook.com and work accounts.", how: "oauth", ready: microsoftConfigured() },
   { id: "imap", name: "Any mailbox", group: "Mail and calendar", brings: "iCloud, Fastmail, Yahoo, Zoho, Gmail with an app password, company mail. Read-only over IMAP.", how: "form", note: "Hotmail, Outlook.com and Microsoft 365 do not accept passwords over IMAP; use the Microsoft connector instead." },
   { id: "ics", name: "Calendar link", group: "Mail and calendar", brings: "Outlook, Google, iCloud or any calendar published as an ICS link. Feeds today's meetings and 1:1 prep.", how: "form" },
   { id: "csv_url", name: "Spreadsheet link", group: "Numbers", brings: "A Google Sheet or Excel file published as CSV. Pulled on every sync into What moved and Sales.", how: "form" },

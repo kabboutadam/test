@@ -95,11 +95,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
               (entry.ready ? (
                 <a href={OAUTH[entry.id].href}><button className="primary">{OAUTH[entry.id].button}</button></a>
               ) : (
-                <p className="sub">
-                  Set <code>{OAUTH[entry.id].vars[0]}</code> and <code>{OAUTH[entry.id].vars[1]}</code> in <code>.env</code>, restart, and this button appears.
-                  <br />
-                  {OAUTH[entry.id].setup}
-                </p>
+                <p className="sub">Not switched on by your administrator yet.</p>
               ))}
             {entry.how === "form" && <ConnectForm kind={entry.id} fields={FORMS[entry.id].fields} submit={FORMS[entry.id].submit} />}
             {entry.how === "key" && (
@@ -142,6 +138,23 @@ Content-Type: application/json
           </article>
         ))}
       </div>
+
+      {native.some((entry) => entry.how === "oauth" && !entry.ready) && (
+        <details className="howto operator">
+          <summary>For the administrator: switching on Google and Microsoft sign-in</summary>
+          <p className="sub">
+            Done once by whoever runs this server, never by the executives who use it. After this, each person just clicks Connect and signs in with their own account.
+          </p>
+          {native
+            .filter((entry) => entry.how === "oauth" && !entry.ready)
+            .map((entry) => (
+              <p key={entry.id} className="sub">
+                <strong>{entry.name}:</strong> {OAUTH[entry.id].setup} Then put <code>{OAUTH[entry.id].vars[0]}</code> and <code>{OAUTH[entry.id].vars[1]}</code> in <code>.env</code> and restart.
+                {entry.id === "microsoft" ? " If portal.azure.com shows an error page, use entra.microsoft.com instead; it is the same registration." : ""}
+              </p>
+            ))}
+        </details>
+      )}
 
       <h2>Reachable through the API key today</h2>
       <div className="catalog">
