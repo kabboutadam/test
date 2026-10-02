@@ -85,7 +85,7 @@ allowed to stop the others.
 | Spreadsheet link (CSV) | **Built**. A Google Sheet "published to web" as CSV or any CSV URL; same columns as the manual import. |
 | Manual CSV import | **Built**, on the Moved page. |
 | API key (`POST /api/v1/metrics`, `POST /api/v1/signals`) | **Built**. Zapier, Make, n8n or a script push numbers or messages. This is how QuickBooks, Xero, Toast, Gusto, HubSpot and Slack reach the product today. |
-| Microsoft 365 (native) | Needs an Azure app registration. Until then: ICS link for the calendar, Zapier for mail. |
+| Microsoft 365 / Outlook.com (Hotmail) | **Built**, OAuth through Microsoft Graph, read-only, delta sync for mail, calendarView for meetings. Needs a free app registration in .env. |
 | Slack (native) | Needs a Slack app. Until then: a zap "new mention → signal". |
 | QuickBooks / Xero (native) | Needs a developer app. Until then: a scheduled zap posting the report rows. |
 | Toast / Gusto (native) | Partner API access required. Until then: their scheduled CSV export as a spreadsheet link. |

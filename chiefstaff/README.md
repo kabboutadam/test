@@ -134,10 +134,11 @@ The **Connect** page in the nav lists everything the product can read, all
 read-only and pulled on every sync:
 
 - **Google Workspace** — Gmail and Calendar by OAuth (needs the free client in `.env`).
+- **Microsoft 365 / Outlook.com** — Hotmail, Outlook.com and work accounts by OAuth
+  through Microsoft Graph (needs the free app registration in `.env`; see `.env.example`).
 - **Any mailbox** — iCloud, Fastmail, Yahoo, Zoho, Gmail with an app password,
   company mail, over IMAP. The app password is stored encrypted. Microsoft
-  accounts no longer accept passwords over IMAP; use the calendar link and ask
-  for the Microsoft 365 connector.
+  accounts do not accept passwords over IMAP; use the Microsoft connector.
 - **Calendar link** — the ICS link Outlook, Google or iCloud will give you.
 - **Spreadsheet link** — a Google Sheet published to the web as CSV, columns
   `metric, period, value` plus optional `segment, unit, good_when, owner`.

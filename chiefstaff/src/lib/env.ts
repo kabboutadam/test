@@ -21,6 +21,15 @@ export const env = {
   get googleRedirectUri() {
     return process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:3000/api/auth/google/callback";
   },
+  get microsoftClientId() {
+    return required("MICROSOFT_CLIENT_ID");
+  },
+  get microsoftClientSecret() {
+    return required("MICROSOFT_CLIENT_SECRET");
+  },
+  get microsoftRedirectUri() {
+    return process.env.MICROSOFT_REDIRECT_URI ?? "http://localhost:3000/api/auth/microsoft/callback";
+  },
   get sessionSecret() {
     return required("SESSION_SECRET");
   },
@@ -32,4 +41,9 @@ export const env = {
 /** True when Google OAuth is configured; the UI degrades gracefully without it. */
 export function googleConfigured(): boolean {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+}
+
+/** True when the Microsoft app registration is in .env. */
+export function microsoftConfigured(): boolean {
+  return Boolean(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET);
 }

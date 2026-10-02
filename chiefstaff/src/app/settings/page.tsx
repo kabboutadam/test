@@ -32,7 +32,7 @@ export default async function SettingsPage() {
 
       <h2>Connected sources</h2>
       <p className="why">
-        {connections.length === 0 ? "Nothing connected yet. " : `${connections.length} Google ${connections.length === 1 ? "account" : "accounts"} connected. `}
+        {connections.length === 0 ? "Nothing connected yet. " : `${connections.length} ${connections.length === 1 ? "account" : "accounts"} connected. `}
         Mailboxes, calendar links, spreadsheet links and API keys live on the <Link href="/integrations">Connect page</Link>.
       </p>
 

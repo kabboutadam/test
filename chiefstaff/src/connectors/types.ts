@@ -3,7 +3,7 @@
  * function that returns these — nothing downstream of ingest knows about Google.
  */
 export interface RawSignal {
-  source: "gmail" | "gcal" | "imap" | "ics" | "webhook";
+  source: "gmail" | "gcal" | "outlook" | "outlook_cal" | "imap" | "ics" | "webhook";
   externalId: string;
   kind: "email" | "meeting" | "message";
   threadKey?: string;

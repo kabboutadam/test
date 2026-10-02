@@ -35,7 +35,13 @@ const FORMS: Record<string, { fields: { name: string; label: string; type?: stri
   },
 };
 
-export default async function IntegrationsPage() {
+const OAUTH: Record<string, { href: string; button: string; vars: string[]; setup: string }> = {
+  google: { href: "/api/auth/google", button: "Connect Google", vars: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"], setup: "console.cloud.google.com → APIs & Services → Credentials → OAuth client (Web). Redirect URI: http://localhost:3000/api/auth/google/callback" },
+  microsoft: { href: "/api/auth/microsoft", button: "Connect Microsoft", vars: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"], setup: "portal.azure.com → App registrations → New. Account type: any org and personal Microsoft accounts. Redirect URI (Web): http://localhost:3000/api/auth/microsoft/callback. Then Certificates & secrets → New client secret; copy the Value." },
+};
+
+export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ error?: string; connected?: string }> }) {
+  const { error, connected: justConnected } = await searchParams;
   const user = await currentUser();
   if (!user) return <SignedOut />;
   const [connected, keys] = await Promise.all([
@@ -53,12 +59,15 @@ export default async function IntegrationsPage() {
         Everything here is read-only and pulled on every sync. Passwords and links are stored encrypted and never shown again.
       </p>
 
+      {error && <p className="form-error">Could not connect: {decodeURIComponent(error).replace(/_/g, " ")}.</p>}
+      {justConnected && <p className="form-ok">Connected. The next sync pulls the last week of mail and the next three days of meetings.</p>}
+
       <h2>Connected</h2>
       {connected.length === 0 && <p className="empty">Nothing yet. The seeded day keeps working until something is connected.</p>}
       {connected.map((item) => (
         <article key={item.id} className={`card${item.status === "error" ? " u3" : ""}`}>
           <div className="meta">
-            <span className="tag">{item.kind === "google" ? "google" : item.kind.replace("_", " ")}</span>
+            <span className="tag">{item.kind.replace("_", " ")}</span>
             <span className={`tag ${item.status === "error" ? "u3" : "good"}`}>{item.status === "error" ? "error" : "ok"}</span>
             <span>{item.lastSyncAt ? `last synced ${new Date(item.lastSyncAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: user.timezone })}` : "not synced yet"}</span>
           </div>
@@ -84,9 +93,13 @@ export default async function IntegrationsPage() {
             {entry.note && <p className="sub">{entry.note}</p>}
             {entry.how === "oauth" &&
               (entry.ready ? (
-                <a href="/api/auth/google"><button className="primary">Connect Google</button></a>
+                <a href={OAUTH[entry.id].href}><button className="primary">{OAUTH[entry.id].button}</button></a>
               ) : (
-                <p className="sub">Set <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> in <code>.env</code>, then this button appears.</p>
+                <p className="sub">
+                  Set <code>{OAUTH[entry.id].vars[0]}</code> and <code>{OAUTH[entry.id].vars[1]}</code> in <code>.env</code>, restart, and this button appears.
+                  <br />
+                  {OAUTH[entry.id].setup}
+                </p>
               ))}
             {entry.how === "form" && <ConnectForm kind={entry.id} fields={FORMS[entry.id].fields} submit={FORMS[entry.id].submit} />}
             {entry.how === "key" && (

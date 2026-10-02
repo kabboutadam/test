@@ -2,6 +2,8 @@ import type { User } from "@prisma/client";
 import { db } from "@/lib/db";
 import { fetchGmail } from "@/connectors/google/gmail";
 import { fetchCalendar } from "@/connectors/google/calendar";
+import { fetchOutlook } from "@/connectors/microsoft/mail";
+import { fetchOutlookCalendar } from "@/connectors/microsoft/calendar";
 import type { RawSignal } from "@/connectors/types";
 import { isBulkSender, resolvePeople } from "./people";
 
@@ -62,12 +64,21 @@ export async function syncUser(user: User): Promise<IngestResult> {
   const totals: IngestResult = { fetched: 0, stored: 0, skipped: 0 };
 
   for (const connection of connections) {
-    if (connection.provider !== "google") continue;
+    let raws: RawSignal[];
+    let cursor: string | null;
+    if (connection.provider === "google") {
+      const gmail = await fetchGmail(connection);
+      raws = [...gmail.signals, ...(await fetchCalendar(connection))];
+      cursor = gmail.cursor ?? connection.cursor;
+    } else if (connection.provider === "microsoft") {
+      const outlook = await fetchOutlook(connection);
+      raws = [...outlook.signals, ...(await fetchOutlookCalendar(connection))];
+      cursor = outlook.cursor ?? connection.cursor;
+    } else {
+      continue;
+    }
 
-    const gmail = await fetchGmail(connection);
-    const raws = [...gmail.signals, ...(await fetchCalendar(connection))];
     const result = await storeSignals(user, raws);
-
     totals.fetched += result.fetched;
     totals.stored += result.stored;
     totals.skipped += result.skipped;
@@ -76,7 +87,7 @@ export async function syncUser(user: User): Promise<IngestResult> {
       where: { id: connection.id },
       // The cursor advances only after the signals it covers are stored, so a
       // crash mid-ingest re-reads that window rather than losing it.
-      data: { lastSyncAt: new Date(), cursor: gmail.cursor ?? connection.cursor },
+      data: { lastSyncAt: new Date(), cursor },
     });
   }
 
