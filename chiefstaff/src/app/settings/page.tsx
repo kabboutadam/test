@@ -1,6 +1,6 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { currentUser } from "@/lib/session";
-import { googleConfigured } from "@/lib/env";
 import QRCode from "qrcode";
 import { linkPhone, testPush } from "../inbox/actions";
 import { phoneServerUrl } from "@/lib/lan";
@@ -31,38 +31,10 @@ export default async function SettingsPage() {
       </p>
 
       <h2>Connected sources</h2>
-
-      {connections.map((connection) => (
-        <article key={connection.id} className="card">
-          <div className="meta">
-            <span className="tag">{connection.provider}</span>
-            <span>
-              {connection.lastSyncAt
-                ? `last synced ${connection.lastSyncAt.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}`
-                : "never synced"}
-            </span>
-          </div>
-          <h3>{connection.accountEmail}</h3>
-          <p className="why">Read-only: Gmail and Calendar. ChiefStaff cannot send as you.</p>
-        </article>
-      ))}
-
-      {connections.length === 0 && (
-        <p className="empty">No sources connected yet.</p>
-      )}
-
-      {googleConfigured() ? (
-        <a href="/api/auth/google">
-          <button className="primary">
-            {connections.length ? "Connect another account" : "Connect Google Workspace"}
-          </button>
-        </a>
-      ) : (
-        <p className="empty">
-          Google OAuth is not configured. Set <code>GOOGLE_CLIENT_ID</code> and{" "}
-          <code>GOOGLE_CLIENT_SECRET</code> in <code>.env</code> to enable it.
-        </p>
-      )}
+      <p className="why">
+        {connections.length === 0 ? "Nothing connected yet. " : `${connections.length} Google ${connections.length === 1 ? "account" : "accounts"} connected. `}
+        Mailboxes, calendar links, spreadsheet links and API keys live on the <Link href="/integrations">Connect page</Link>.
+      </p>
 
       <h2>Phone</h2>
       <p className="why">

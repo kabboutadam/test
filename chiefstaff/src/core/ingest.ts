@@ -80,5 +80,13 @@ export async function syncUser(user: User): Promise<IngestResult> {
     });
   }
 
+  // Mailboxes, calendar links and spreadsheet links, each isolated so one
+  // bad password cannot stop Google from syncing.
+  const { syncIntegrations } = await import("./integrations");
+  const extra = await syncIntegrations(user);
+  totals.fetched += extra.signals.fetched;
+  totals.stored += extra.signals.stored;
+  totals.skipped += extra.signals.skipped;
+
   return totals;
 }

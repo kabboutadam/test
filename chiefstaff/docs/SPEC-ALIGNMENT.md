@@ -73,17 +73,24 @@ Voice learned from sent mail: not built.
 
 ## 6. Integrations
 
+All on the **Connect** page (`/integrations`). Every source is read-only and
+pulled on every sync; one failing source is recorded on its card, never
+allowed to stop the others.
+
 | Integration | Status |
 |---|---|
-| Google Workspace (Gmail, Calendar) | **Built**, read-only, incremental |
-| Spreadsheet / CSV for metrics | **Built** — the "generic connector early" the spec's risk section asks for; it is how a controller's weekly spreadsheet gets in |
-| QuickBooks Online | Needs an Intuit developer account and OAuth app. Maps onto `Metric`: P&L lines by class (location), AR aging buckets, cash. |
-| Toast | Needs a Toast partner account. Maps onto `Metric`: net sales, labour %, prime cost per location per day. |
-| Gusto | Needs a Gusto developer account. Maps onto `Metric`: hours, overtime hours, labour cost per location per pay period. |
-| Slack | Needs a Slack app. Would feed `Signal` (same shape as email). |
-| Microsoft 365 | Post-MVP per spec. |
+| Google Workspace (Gmail, Calendar) | **Built**, OAuth, read-only, incremental. Needs a free Google OAuth client in `.env`. |
+| Any mailbox over IMAP | **Built**. iCloud, Fastmail, Yahoo, Zoho, Gmail with an app password, company mail. App password stored encrypted (AES-GCM, key derived from `SESSION_SECRET`). Microsoft accounts no longer accept passwords over IMAP. |
+| Calendar link (ICS) | **Built**. Outlook's published calendar, Google's secret iCal address, iCloud's public share. Recurring events expanded. |
+| Spreadsheet link (CSV) | **Built**. A Google Sheet "published to web" as CSV or any CSV URL; same columns as the manual import. |
+| Manual CSV import | **Built**, on the Moved page. |
+| API key (`POST /api/v1/metrics`, `POST /api/v1/signals`) | **Built**. Zapier, Make, n8n or a script push numbers or messages. This is how QuickBooks, Xero, Toast, Gusto, HubSpot and Slack reach the product today. |
+| Microsoft 365 (native) | Needs an Azure app registration. Until then: ICS link for the calendar, Zapier for mail. |
+| Slack (native) | Needs a Slack app. Until then: a zap "new mention → signal". |
+| QuickBooks / Xero (native) | Needs a developer app. Until then: a scheduled zap posting the report rows. |
+| Toast / Gusto (native) | Partner API access required. Until then: their scheduled CSV export as a spreadsheet link. |
 
-Every connector above feeds either `Signal` (things that happened) or `Metric`
+Every connector feeds either `Signal` (things that happened) or `Metric`
 (numbers over time). Nothing downstream knows which source a row came from.
 
 ## 7. Non-goals — held

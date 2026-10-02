@@ -38,6 +38,7 @@ model User {
   movements   Movement[]
   records     DecisionRecord[]
   preps       MeetingPrep[]
+  integrations Integration[]
 }
 
 /// A connected source account (today: Google Workspace).
@@ -382,4 +383,28 @@ model MeetingPrep {
   person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([userId, startsAt])
+}
+
+/// A connected source other than Google OAuth: a mailbox, a calendar feed, a
+/// spreadsheet link. Config is plain JSON; anything secret lives encrypted in
+/// `secret` (see src/lib/secrets.ts) and is never returned to a client.
+model Integration {
+  id         String    @id @default(cuid())
+  userId     String
+  /// imap | ics | csv_url
+  kind       String
+  label      String
+  config     Json
+  secret     String?
+  /// ok | error
+  status     String    @default("ok")
+  lastError  String?
+  /// Connector-specific resume point (IMAP UID, feed ETag).
+  cursor     String?
+  lastSyncAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

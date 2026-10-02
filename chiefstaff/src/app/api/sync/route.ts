@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { hasSources } from "@/core/integrations";
 import { currentUser } from "@/lib/session";
 import { enqueuePipeline } from "@/jobs/queue";
 
@@ -12,8 +12,7 @@ export async function POST() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "not signed in" }, { status: 401 });
 
-  const connections = await db.connection.count({ where: { userId: user.id } });
-  if (connections === 0) {
+  if (!(await hasSources(user.id))) {
     return NextResponse.json({ error: "no sources connected" }, { status: 409 });
   }
 

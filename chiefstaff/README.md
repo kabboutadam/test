@@ -128,14 +128,28 @@ brief is printed to the console and left marked undelivered, so a misconfigured
 deployment is loud rather than silently swallowing the product's only
 notification.
 
-## Numbers in
+## Connecting sources
 
-Metrics arrive as a CSV — the weekly spreadsheet a controller already sends —
-under **Moved → Import**: columns `metric, period, value`, optionally
-`segment, unit, good_when, owner`. Anomalies are detected against each metric's
-own last twelve periods, never a fixed threshold; "not useful" makes that metric
-quieter. QuickBooks, Toast and Gusto will feed the same table when their
-accounts exist. See `docs/SPEC-ALIGNMENT.md`.
+The **Connect** page in the nav lists everything the product can read, all
+read-only and pulled on every sync:
+
+- **Google Workspace** — Gmail and Calendar by OAuth (needs the free client in `.env`).
+- **Any mailbox** — iCloud, Fastmail, Yahoo, Zoho, Gmail with an app password,
+  company mail, over IMAP. The app password is stored encrypted. Microsoft
+  accounts no longer accept passwords over IMAP; use the calendar link and ask
+  for the Microsoft 365 connector.
+- **Calendar link** — the ICS link Outlook, Google or iCloud will give you.
+- **Spreadsheet link** — a Google Sheet published to the web as CSV, columns
+  `metric, period, value` plus optional `segment, unit, good_when, owner`.
+  Feeds What moved and the Sales page.
+- **API key** — for Zapier, Make, n8n or a script: `POST /api/v1/metrics`
+  with rows, or `POST /api/v1/signals` with messages. That is how QuickBooks,
+  Xero, Toast, Gusto, HubSpot and Slack reach the product until each has a
+  native connector (each of those needs a vendor developer app).
+
+Numbers can still be imported by hand under **Moved → Import**. Anomalies are
+detected against each metric's own last twelve periods, never a fixed
+threshold; "not useful" makes that metric quieter. See `docs/SPEC-ALIGNMENT.md`.
 
 ## Measuring triage
 

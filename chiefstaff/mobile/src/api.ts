@@ -205,6 +205,16 @@ export interface PersonRow extends Person {
   importance: number;
 }
 
+export interface IntegrationRow {
+  id: string;
+  kind: string;
+  label: string;
+  account: string;
+  status: "ok" | "error";
+  lastError: string | null;
+  lastSyncAt: string | null;
+}
+
 export interface Me {
   name: string | null;
   email: string;
@@ -225,6 +235,7 @@ export const api = {
     }),
   signOut: () => call<{ ok: boolean }>("/api/v1/auth", { method: "DELETE" }),
   me: () => call<{ user: Me }>("/api/v1/me"),
+  integrations: () => call<{ integrations: IntegrationRow[] }>("/api/v1/integrations"),
   brief: () =>
     call<{
       brief: Brief | null;

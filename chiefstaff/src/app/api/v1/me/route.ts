@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { db } from "@/lib/db";
+import { hasSources } from "@/core/integrations";
 import { authed, json } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const { user } = auth;
 
-  const connections = await db.connection.count({ where: { userId: user.id } });
+  const connected = await hasSources(user.id);
   return json({
     user: {
       name: user.name,
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       company: user.company,
       timezone: user.timezone,
       briefHour: user.briefHour,
-      connected: connections > 0,
+      connected,
     },
   });
 }

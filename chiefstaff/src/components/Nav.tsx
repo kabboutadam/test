@@ -10,6 +10,7 @@ const ITEMS = [
   ["/metrics", "Moved"],
   ["/sales", "Sales"],
   ["/decisions", "Decisions"],
+  ["/integrations", "Connect"],
   ["/settings", "Settings"],
 ] as const;
 

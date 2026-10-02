@@ -11,8 +11,12 @@ import { useTheme } from "@/theme";
 export default function SettingsScreen() {
   const t = useTheme();
   const signOut = useSignOut();
-  const load = useCallback(() => api.me(), []);
+  const load = useCallback(async () => {
+    const [me, sources] = await Promise.all([api.me(), api.integrations().catch(() => ({ integrations: [] }))]);
+    return { ...me, integrations: sources.integrations };
+  }, []);
   const { data, error } = useFetch(load);
+  const integrations = data?.integrations ?? [];
   const me = data?.user;
   const [note, setNote] = useState<string | null>(null);
   const [server, setServer] = useState("");
@@ -68,9 +72,25 @@ export default function SettingsScreen() {
                 {String(me.briefHour).padStart(2, "0")}:00 · {me.timezone}
               </Text>
               <Text style={[styles.label, { color: t.muted, marginTop: 12 }]}>Sources</Text>
-              <Text style={[styles.value, { color: t.ink }]}>
-                {me.connected ? "Google Workspace connected" : "None — connect Google on the web"}
-              </Text>
+              {integrations.length === 0 && (
+                <Text style={[styles.value, { color: t.ink }]}>None yet. Connect mail, calendars and spreadsheets on the web under Connect.</Text>
+              )}
+              {integrations.map((source) => (
+                <View key={source.id} style={styles.source}>
+                  <View style={[styles.dot, { backgroundColor: source.status === "error" ? t.urgent : t.ok }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.value, { color: t.ink }]}>{source.label}</Text>
+                    <Text style={[styles.sub, { color: source.status === "error" ? t.urgent : t.muted }]} numberOfLines={2}>
+                      {source.status === "error"
+                        ? source.lastError ?? "error"
+                        : source.lastSyncAt
+                          ? `synced ${new Date(source.lastSyncAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}`
+                          : "not synced yet"}
+                      {source.account ? ` · ${source.account}` : ""}
+                    </Text>
+                  </View>
+                </View>
+              ))}
             </Card>
           )}
 
@@ -96,7 +116,7 @@ export default function SettingsScreen() {
           />
 
           <Text style={[styles.foot, { color: t.muted }]}>
-            Read-only Gmail and Calendar, read as you. Drafts are never sent by this app.
+            Every source is read-only. Drafts are never sent by this app.
           </Text>
         </ScrollView>
       </SafeAreaView>
@@ -110,6 +130,9 @@ const styles = StyleSheet.create({
   value: { fontSize: 15 },
   stack: { gap: 8, marginTop: 4 },
   note: { fontSize: 13, lineHeight: 19, marginTop: 12 },
+  source: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+  sub: { fontSize: 12, lineHeight: 16 },
   input: { fontSize: 14, borderWidth: 1, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12 },
   foot: { fontSize: 12, lineHeight: 18, marginTop: 20 },
 });
